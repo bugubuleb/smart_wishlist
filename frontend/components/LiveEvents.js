@@ -11,6 +11,9 @@ export default function LiveEvents({ slug }) {
 
   useEffect(() => {
     const socket = connectWishlistSocket(slug, (event) => {
+      if (!event?.type || (event.type !== "item.removed" && event.type !== "item.priority.updated")) {
+        return;
+      }
       setEvents((prev) => [event, ...prev].slice(0, 10));
     });
 
@@ -25,7 +28,9 @@ export default function LiveEvents({ slug }) {
       ) : (
         <ul style={{ margin: 0, paddingLeft: 18 }}>
           {events.map((event, index) => (
-            <li key={index}>{event.type || "event"}</li>
+            <li key={index}>
+              {event.type === "item.removed" ? t("liveItemRemoved") : t("liveItemPriorityChanged")}
+            </li>
           ))}
         </ul>
       )}

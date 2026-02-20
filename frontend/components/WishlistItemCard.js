@@ -140,7 +140,7 @@ export default function WishlistItemCard({ item, viewerRole, minContribution, sh
 
       {viewerRole === "guest" ? (
         <div style={{ display: "grid", gap: 8 }}>
-          {showReservationActions ? (
+          {showReservationActions && canContribute ? (
             <button
               type="button"
               disabled={busy || isUnavailable || (item.is_reserved && !item.is_reserved_me)}
@@ -164,28 +164,30 @@ export default function WishlistItemCard({ item, viewerRole, minContribution, sh
               {item.is_reserved_me ? t("unreserve") : t("reserve")}
             </button>
           ) : null}
-          <button
-            type="button"
-            disabled={busy || isUnavailable}
-            onClick={async () => {
-              setBusy(true);
-              setError("");
-              try {
-                if (item.is_responsible_me) {
-                  await onUnsetResponsible(item.id);
-                } else {
-                  await onSetResponsible(item.id);
+          {canContribute ? (
+            <button
+              type="button"
+              disabled={busy || isUnavailable}
+              onClick={async () => {
+                setBusy(true);
+                setError("");
+                try {
+                  if (item.is_responsible_me) {
+                    await onUnsetResponsible(item.id);
+                  } else {
+                    await onSetResponsible(item.id);
+                  }
+                } catch (err) {
+                  setError(err.message || "Failed to set responsible");
+                } finally {
+                  setBusy(false);
                 }
-              } catch (err) {
-                setError(err.message || "Failed to set responsible");
-              } finally {
-                setBusy(false);
-              }
-            }}
-            style={{ padding: 10, border: 0, borderRadius: 8, background: item.is_responsible_me ? "#0b7a3e" : "#334155", color: "white" }}
-          >
-            {item.is_responsible_me ? t("unsetResponsible") : t("beResponsible")}
-          </button>
+              }}
+              style={{ padding: 10, border: 0, borderRadius: 8, background: item.is_responsible_me ? "#0b7a3e" : "#334155", color: "white" }}
+            >
+              {item.is_responsible_me ? t("unsetResponsible") : t("beResponsible")}
+            </button>
+          ) : null}
           {!item.is_fully_funded && canContribute ? (
             <>
               <input
