@@ -195,7 +195,7 @@ export default function WishlistPublicClient({ slug }) {
 
       <section className="wishlist-items-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12, width: "100%" }}>
         {wishlist.items.length === 0 ? (
-          <p>{t("wishlistEmpty")}</p>
+          <p>{wishlist.can_edit ? t("wishlistEmpty") : t("wishlistEmptyAuthorPending")}</p>
         ) : (
           wishlist.items.map((item) => (
             <WishlistItemCard
