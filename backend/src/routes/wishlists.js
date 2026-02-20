@@ -67,6 +67,17 @@ function resolveDueAt(dueDate) {
   return parsed;
 }
 
+function canEditWishlist(wishlistRow, userId) {
+  return (
+    Number(wishlistRow.owner_id) === Number(userId)
+    || (
+      wishlistRow.recipient_mode === "friend"
+      && wishlistRow.recipient_user_id
+      && Number(wishlistRow.recipient_user_id) === Number(userId)
+    )
+  );
+}
+
 async function resolveActorAlias(req, fallbackAlias) {
   if (fallbackAlias?.trim()) return fallbackAlias.trim();
   if (!req.user?.userId) return "guest";
@@ -303,9 +314,12 @@ wishlistRouter.post("/wishlists/:slug/items", requireAuth, async (req, res) => {
   const parsed = createItemSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Invalid payload" });
 
-  const ownerCheck = await pool.query("SELECT id, owner_id FROM wishlists WHERE slug = $1", [req.params.slug]);
+  const ownerCheck = await pool.query(
+    "SELECT id, owner_id, recipient_mode, recipient_user_id FROM wishlists WHERE slug = $1",
+    [req.params.slug],
+  );
   if (!ownerCheck.rowCount) return res.status(404).json({ message: "Wishlist not found" });
-  if (ownerCheck.rows[0].owner_id !== req.user.userId) return res.status(403).json({ message: "Forbidden" });
+  if (!canEditWishlist(ownerCheck.rows[0], req.user.userId)) return res.status(403).json({ message: "Forbidden" });
 
   const created = await pool.query(
     `INSERT INTO wishlist_items (wishlist_id, title, product_url, image_url, target_price, priority)
@@ -354,7 +368,8 @@ wishlistRouter.post("/items/:itemId/remove", requireAuth, async (req, res) => {
   if (!parsed.success) return res.status(400).json({ message: "Invalid payload" });
 
   const item = await pool.query(
-    `SELECT wi.id, wi.wishlist_id, wi.item_status, wi.title, wi.target_price, w.title AS wishlist_title, w.owner_id, w.slug,
+    `SELECT wi.id, wi.wishlist_id, wi.item_status, wi.title, wi.target_price, w.title AS wishlist_title,
+            w.owner_id, w.recipient_mode, w.recipient_user_id, w.slug,
             COALESCE((SELECT SUM(amount) FROM contributions c WHERE c.item_id = wi.id), 0) AS collected
      FROM wishlist_items wi
      JOIN wishlists w ON w.id = wi.wishlist_id
@@ -364,7 +379,7 @@ wishlistRouter.post("/items/:itemId/remove", requireAuth, async (req, res) => {
 
   if (!item.rowCount) return res.status(404).json({ message: "Item not found" });
   const row = item.rows[0];
-  if (row.owner_id !== req.user.userId) return res.status(403).json({ message: "Forbidden" });
+  if (!canEditWishlist(row, req.user.userId)) return res.status(403).json({ message: "Forbidden" });
 
   const collected = Number(row.collected || 0);
   const targetPrice = Number(row.target_price || 0);
@@ -410,7 +425,7 @@ wishlistRouter.patch("/items/:itemId/priority", requireAuth, async (req, res) =>
   if (!parsed.success) return res.status(400).json({ message: "Invalid payload" });
 
   const item = await pool.query(
-    `SELECT wi.id, w.owner_id, w.slug
+    `SELECT wi.id, w.owner_id, w.recipient_mode, w.recipient_user_id, w.slug
      FROM wishlist_items wi
      JOIN wishlists w ON w.id = wi.wishlist_id
      WHERE wi.id = $1`,
@@ -418,7 +433,7 @@ wishlistRouter.patch("/items/:itemId/priority", requireAuth, async (req, res) =>
   );
 
   if (!item.rowCount) return res.status(404).json({ message: "Item not found" });
-  if (Number(item.rows[0].owner_id) !== Number(req.user.userId)) {
+  if (!canEditWishlist(item.rows[0], req.user.userId)) {
     return res.status(403).json({ message: "Forbidden" });
   }
 
@@ -529,6 +544,14 @@ wishlistRouter.get("/wishlists/:slug", optionalAuth, async (req, res) => {
 
   const wishlist = wishlistResult.rows[0];
   const isOwner = req.user?.userId === wishlist.owner_id;
+  const isRecipientEditor = Boolean(
+    req.user?.userId
+    && wishlist.recipient_mode === "friend"
+    && wishlist.recipient_user_id
+    && Number(req.user.userId) === Number(wishlist.recipient_user_id),
+  );
+  const canEdit = isOwner || isRecipientEditor;
+  const canContribute = !isRecipientEditor;
 
   if (!wishlist.is_public && !isOwner) {
     if (!req.user) {
@@ -606,6 +629,8 @@ wishlistRouter.get("/wishlists/:slug", optionalAuth, async (req, res) => {
     due_at: wishlist.due_at,
     can_delete: Boolean(isOwner && wishlist.due_at && new Date(wishlist.due_at).getTime() <= Date.now()),
     viewer_role: isOwner ? "owner" : "guest",
+    can_edit: canEdit,
+    can_contribute: canContribute,
     recipient_mode: wishlist.recipient_mode,
     recipient_name: wishlist.recipient_name,
     hide_from_recipient: wishlist.hide_from_recipient,
@@ -689,6 +714,7 @@ wishlistRouter.post("/items/:itemId/contribute", optionalAuth, async (req, res) 
 
   const item = await pool.query(
     `SELECT wi.id, wi.item_status, wi.target_price, w.slug, w.id AS wishlist_id, w.min_contribution,
+            w.recipient_mode, w.recipient_user_id,
             COALESCE((SELECT SUM(amount) FROM contributions c WHERE c.item_id = wi.id), 0) AS collected
      FROM wishlist_items wi
      JOIN wishlists w ON w.id = wi.wishlist_id
@@ -699,6 +725,15 @@ wishlistRouter.post("/items/:itemId/contribute", optionalAuth, async (req, res) 
 
   if (item.rows[0].item_status !== "active") {
     return res.status(409).json({ message: "Item is unavailable" });
+  }
+
+  if (
+    req.user?.userId
+    && item.rows[0].recipient_mode === "friend"
+    && item.rows[0].recipient_user_id
+    && Number(item.rows[0].recipient_user_id) === Number(req.user.userId)
+  ) {
+    return res.status(403).json({ message: "Recipient cannot contribute to this wishlist" });
   }
 
   const minContribution = Number(item.rows[0].min_contribution || DEFAULT_MIN_CONTRIBUTION);

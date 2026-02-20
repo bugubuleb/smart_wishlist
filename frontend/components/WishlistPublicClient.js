@@ -17,6 +17,7 @@ export default function WishlistPublicClient({ slug }) {
   const [accessDenied, setAccessDenied] = useState(false);
   const [visibilityBusy, setVisibilityBusy] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   const { t } = useLanguage();
   const router = useRouter();
 
@@ -49,6 +50,10 @@ export default function WishlistPublicClient({ slug }) {
   }, [slug]);
 
   useEffect(() => {
+    setEditMode(false);
+  }, [slug]);
+
+  useEffect(() => {
     const socket = connectWishlistSocket(slug, () => {
       loadWishlist();
     });
@@ -57,6 +62,11 @@ export default function WishlistPublicClient({ slug }) {
   }, [slug]);
 
   const viewerRole = useMemo(() => wishlist?.viewer_role || "guest", [wishlist?.viewer_role]);
+  const isOwner = viewerRole === "owner";
+  const isFriendWishlist = wishlist?.recipient_mode === "friend";
+  const canToggleEdit = Boolean(wishlist?.can_edit) && isFriendWishlist;
+  const isEditing = isOwner ? (!isFriendWishlist || editMode) : Boolean(wishlist?.can_edit && editMode);
+  const effectiveViewerRole = isEditing ? "owner" : "guest";
   const minContribution = wishlist?.min_contribution || 100;
   const dueAtText = wishlist?.due_at ? new Date(wishlist.due_at).toLocaleDateString() : "";
 
@@ -95,7 +105,7 @@ export default function WishlistPublicClient({ slug }) {
       <header className="card" style={{ padding: 18, width: "100%" }}>
         <h1 style={{ margin: 0 }}>{wishlist.title}</h1>
         <p style={{ marginBottom: 0, color: "var(--muted)" }}>
-          {viewerRole === "owner" ? t("ownerHeader") : t("guestHeader")}
+          {effectiveViewerRole === "owner" ? t("ownerHeader") : t("guestHeader")}
         </p>
         {dueAtText ? <small style={{ color: "var(--muted)" }}>{t("dueDate")}: {dueAtText}</small> : null}
       </header>
@@ -115,7 +125,22 @@ export default function WishlistPublicClient({ slug }) {
         >
           {t("backToList")}
         </a>
-        {viewerRole === "owner" ? (
+        {canToggleEdit ? (
+          <button
+            type="button"
+            onClick={() => setEditMode((prev) => !prev)}
+            style={{
+              padding: "10px 14px",
+              borderRadius: 10,
+              border: "1px solid var(--line)",
+              background: editMode ? "var(--accent)" : "var(--field-bg)",
+              color: editMode ? "white" : "var(--text)",
+            }}
+          >
+            {editMode ? t("exitEditMode") : t("enterEditMode")}
+          </button>
+        ) : null}
+        {isOwner && isEditing ? (
           <>
             <button
               type="button"
@@ -166,7 +191,7 @@ export default function WishlistPublicClient({ slug }) {
         ) : null}
       </section>
 
-      {viewerRole === "owner" ? <AddItemForm slug={slug} token={getToken()} onCreated={loadWishlist} /> : null}
+      {isEditing ? <AddItemForm slug={slug} token={getToken()} onCreated={loadWishlist} /> : null}
 
       <section className="wishlist-items-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12, width: "100%" }}>
         {wishlist.items.length === 0 ? (
@@ -176,8 +201,10 @@ export default function WishlistPublicClient({ slug }) {
             <WishlistItemCard
               key={item.id}
               item={item}
-              viewerRole={viewerRole}
+              viewerRole={effectiveViewerRole}
               minContribution={minContribution}
+              showReservationActions={effectiveViewerRole === "guest" && !isOwner}
+              canContribute={Boolean(wishlist.can_contribute)}
               onContribute={async (itemId, amount) => {
                 const result = await contributeToItem(itemId, amount, getToken() || undefined);
                 await loadWishlist();

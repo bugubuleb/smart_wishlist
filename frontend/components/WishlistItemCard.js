@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { useLanguage } from "@/components/LanguageProvider";
 
-export default function WishlistItemCard({ item, viewerRole, minContribution, onContribute, onReserve, onUnreserve, onSetResponsible, onUnsetResponsible, onSetPriority, onRemove }) {
+export default function WishlistItemCard({ item, viewerRole, minContribution, showReservationActions = true, canContribute = true, onContribute, onReserve, onUnreserve, onSetResponsible, onUnsetResponsible, onSetPriority, onRemove }) {
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -140,28 +140,30 @@ export default function WishlistItemCard({ item, viewerRole, minContribution, on
 
       {viewerRole === "guest" ? (
         <div style={{ display: "grid", gap: 8 }}>
-          <button
-            type="button"
-            disabled={busy || isUnavailable || (item.is_reserved && !item.is_reserved_me)}
-            onClick={async () => {
-              setBusy(true);
-              setError("");
-              try {
-                if (item.is_reserved_me) {
-                  await onUnreserve(item.id);
-                } else {
-                  await onReserve(item.id);
+          {showReservationActions ? (
+            <button
+              type="button"
+              disabled={busy || isUnavailable || (item.is_reserved && !item.is_reserved_me)}
+              onClick={async () => {
+                setBusy(true);
+                setError("");
+                try {
+                  if (item.is_reserved_me) {
+                    await onUnreserve(item.id);
+                  } else {
+                    await onReserve(item.id);
+                  }
+                } catch (err) {
+                  setError(err.message || "Failed to update reservation");
+                } finally {
+                  setBusy(false);
                 }
-              } catch (err) {
-                setError(err.message || "Failed to update reservation");
-              } finally {
-                setBusy(false);
-              }
-            }}
-            style={{ padding: 10, border: 0, borderRadius: 8, background: item.is_reserved_me ? "#0b7a3e" : "#334155", color: "white" }}
-          >
-            {item.is_reserved_me ? t("unreserve") : t("reserve")}
-          </button>
+              }}
+              style={{ padding: 10, border: 0, borderRadius: 8, background: item.is_reserved_me ? "#0b7a3e" : "#334155", color: "white" }}
+            >
+              {item.is_reserved_me ? t("unreserve") : t("reserve")}
+            </button>
+          ) : null}
           <button
             type="button"
             disabled={busy || isUnavailable}
@@ -184,7 +186,7 @@ export default function WishlistItemCard({ item, viewerRole, minContribution, on
           >
             {item.is_responsible_me ? t("unsetResponsible") : t("beResponsible")}
           </button>
-          {!item.is_fully_funded ? (
+          {!item.is_fully_funded && canContribute ? (
             <>
               <input
                 value={amount}
@@ -195,7 +197,7 @@ export default function WishlistItemCard({ item, viewerRole, minContribution, on
               <small style={{ color: "var(--muted)" }}>{t("minContribution")} {minContribution} ₽</small>
             </>
           ) : null}
-          {!item.is_fully_funded ? (
+          {!item.is_fully_funded && canContribute ? (
             <button
               type="button"
               disabled={busy || isUnavailable}
@@ -205,6 +207,7 @@ export default function WishlistItemCard({ item, viewerRole, minContribution, on
               {t("contribute")}
             </button>
           ) : null}
+          {!canContribute ? <small style={{ color: "var(--muted)" }}>{t("recipientCannotContribute")}</small> : null}
         </div>
       ) : null}
 
