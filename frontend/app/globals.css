@@ -1,0 +1,383 @@
+:root {
+  --bg: #f5f7fb;
+  --panel: rgba(255, 255, 255, 0.62);
+  --text: #1d2433;
+  --accent: #4f7cff;
+  --muted: #5f6f89;
+  --line: rgba(137, 157, 196, 0.36);
+  --bg-a: #e4edff;
+  --bg-b: #e7f3ff;
+  --bg-c: #efe6ff;
+  --toggle-bg: rgba(255, 255, 255, 0.68);
+  --field-bg: rgba(255, 255, 255, 0.7);
+  --shell-bg: rgba(255, 255, 255, 0.14);
+  --shell-line: rgba(137, 157, 196, 0.24);
+  --bg-shift-x: 0px;
+  --bg-shift-y: 0px;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0d111d;
+  --panel: rgba(24, 31, 52, 0.32);
+  --text: #e9eefb;
+  --accent: #7c9dff;
+  --muted: #aebadb;
+  --line: rgba(126, 148, 206, 0.28);
+  --bg-a: #1d2140;
+  --bg-b: #16314f;
+  --bg-c: #2a1d45;
+  --toggle-bg: rgba(22, 29, 48, 0.58);
+  --field-bg: rgba(22, 30, 50, 0.5);
+  --shell-bg: rgba(14, 20, 36, 0.22);
+  --shell-line: rgba(124, 150, 212, 0.2);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  position: relative;
+  margin: 0;
+  color: var(--text);
+  font-family: "Manrope", "Segoe UI", sans-serif;
+  transition: background-color 180ms ease;
+  background: var(--bg);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      circle at calc(10% + var(--bg-shift-x)) calc(10% + var(--bg-shift-y)),
+      var(--bg-a) 0,
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at calc(80% - var(--bg-shift-x)) calc(20% - var(--bg-shift-y)),
+      var(--bg-b) 0,
+      transparent 45%
+    ),
+    radial-gradient(
+      circle at calc(48% + var(--bg-shift-x) * 0.35) calc(78% - var(--bg-shift-y) * 0.35),
+      var(--bg-c) 0,
+      transparent 42%
+    ),
+    var(--bg);
+  background-repeat: no-repeat;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+input,
+textarea,
+select {
+  background: var(--field-bg);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+input,
+textarea,
+select,
+button {
+  font: inherit;
+}
+
+.container {
+  width: min(1120px, 92vw);
+  margin: 24px auto;
+  padding: 18px 26px 28px;
+  background: transparent;
+  border: 0;
+  border-radius: 18px;
+  backdrop-filter: none;
+  display: grid;
+  justify-items: center;
+  text-align: center;
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+}
+
+.root-ui {
+  position: relative;
+  z-index: 2;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.global-actions {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-shell {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+main {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  justify-items: center;
+  text-align: center;
+}
+
+.stars-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+:root[data-theme="dark"] .stars-canvas {
+  opacity: 0.78;
+}
+
+.theme-toggle-wrap {
+  position: static;
+}
+
+.theme-toggle,
+.global-logout {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--toggle-bg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.global-logout {
+  width: auto;
+  min-width: 72px;
+  padding: 0 12px;
+  font-weight: 600;
+}
+
+.lang-btn {
+  min-width: 64px;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--toggle-bg);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.lang-btn-single {
+  letter-spacing: 0.3px;
+}
+
+button {
+  border: 1px solid var(--line);
+  transition: filter 150ms ease, transform 150ms ease, background-color 150ms ease;
+}
+
+button:hover {
+  filter: brightness(1.08);
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+.theme-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.wishlist-status-block {
+  width: min(840px, 100%);
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+}
+
+.wishlist-status-text {
+  margin: 0;
+  text-align: center;
+  font-size: clamp(1.5rem, 2.5vw, 2.1rem);
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+}
+
+.wishlist-status-back {
+  margin-top: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--field-bg);
+  font-weight: 700;
+}
+
+@media (max-width: 960px) {
+  .container {
+    width: min(96vw, 1120px);
+    padding: 16px 14px 22px;
+  }
+
+  .global-actions {
+    top: 10px;
+    right: 10px;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 768px) {
+  .global-actions {
+    left: 50%;
+    right: auto;
+    top: 10px;
+    transform: translateX(-50%);
+    padding: 6px 8px;
+    border: 1px solid var(--shell-line);
+    border-radius: 999px;
+    background: var(--shell-bg);
+    backdrop-filter: blur(8px);
+  }
+
+  .app-shell {
+    padding-top: 64px;
+  }
+
+  .container {
+    margin: 12px auto;
+    padding: 14px 8px 18px;
+    width: min(96vw, 1120px);
+  }
+
+  .theme-toggle {
+    width: 48px;
+    height: 48px;
+  }
+
+  .global-logout,
+  .lang-btn {
+    height: 48px;
+  }
+
+  .global-logout {
+    min-width: 82px;
+    padding: 0 14px;
+  }
+
+  .lang-btn {
+    min-width: 72px;
+    font-size: 0.95rem;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    min-height: 46px;
+    font-size: 16px;
+  }
+
+  .card {
+    border-radius: 12px;
+  }
+
+  .dashboard-root,
+  .wishlist-page {
+    width: min(96vw, 1240px) !important;
+    gap: 12px !important;
+  }
+
+  .dashboard-tabs {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .dashboard-tabs button {
+    width: 100%;
+  }
+
+  .friend-request-form {
+    grid-template-columns: 1fr !important;
+  }
+
+  .friend-request-form button {
+    width: 100%;
+  }
+
+  .friend-request-row {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+
+  .friend-request-actions {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .wishlist-toolbar {
+    display: grid !important;
+    grid-template-columns: 1fr;
+  }
+
+  .wishlist-toolbar > * {
+    width: 100%;
+    text-align: center;
+  }
+
+  .wishlist-items-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .wishlist-status-block {
+    min-height: 180px;
+    padding: 20px;
+  }
+
+  .wishlist-status-text {
+    font-size: clamp(1.3rem, 6vw, 1.8rem);
+  }
+}
