@@ -1,5 +1,7 @@
 # Smart Wishlist
 
+![Login screen](login.png)
+![Wishlist screen](gifts.png)
 
 ## РУС
 
