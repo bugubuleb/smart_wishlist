@@ -111,6 +111,7 @@ CREATE TABLE IF NOT EXISTS friend_requests (
   id SERIAL PRIMARY KEY,
   from_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   to_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  from_visible_wishlist_ids INTEGER[] NOT NULL DEFAULT '{}',
   status VARCHAR(20) NOT NULL DEFAULT 'pending',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),

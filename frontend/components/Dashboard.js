@@ -59,8 +59,36 @@ export default function Dashboard({ token, user }) {
   const [outgoingRequests, setOutgoingRequests] = useState([]);
   const [friendUsername, setFriendUsername] = useState("");
   const [friendError, setFriendError] = useState("");
+  const [requestVisibleWishlistIds, setRequestVisibleWishlistIds] = useState([]);
+  const [incomingVisibleByRequest, setIncomingVisibleByRequest] = useState({});
   const [activeTab, setActiveTab] = useState("wishlists");
   const { t } = useLanguage();
+  const ownWishlistIds = wishlists.map((wishlist) => Number(wishlist.id));
+
+  useEffect(() => {
+    setRequestVisibleWishlistIds((prev) => {
+      if (prev.length === 0) return ownWishlistIds;
+      const prevSet = new Set(prev.map(Number));
+      ownWishlistIds.forEach((id) => {
+        if (!prevSet.has(id)) prevSet.add(id);
+      });
+      return ownWishlistIds.filter((id) => prevSet.has(id));
+    });
+  }, [wishlists]);
+
+  useEffect(() => {
+    setIncomingVisibleByRequest((prev) => {
+      const next = {};
+      const ownSet = new Set(ownWishlistIds);
+
+      for (const request of incomingRequests) {
+        const existing = Array.isArray(prev[request.id]) ? prev[request.id].map(Number) : ownWishlistIds;
+        next[request.id] = existing.filter((id) => ownSet.has(id));
+      }
+
+      return next;
+    });
+  }, [incomingRequests, wishlists]);
 
   async function refreshFriendsData() {
     const data = await getFriends(token);
@@ -137,7 +165,7 @@ export default function Dashboard({ token, user }) {
 
     setFriendError("");
     try {
-      await sendFriendRequest(friendUsername.trim(), token);
+      await sendFriendRequest(friendUsername.trim(), requestVisibleWishlistIds, token);
       setFriendUsername("");
 
       await Promise.all([refreshFriendsData(), refreshSharedWishlists(), refreshNotifications()]);
@@ -244,6 +272,33 @@ export default function Dashboard({ token, user }) {
               {t("sendRequest")}
             </button>
           </form>
+          <div style={{ display: "grid", gap: 8 }}>
+            <small style={{ color: "var(--muted)" }}>{t("friendRequestVisibleWishlists")}</small>
+            {wishlists.length === 0 ? (
+              <small style={{ color: "var(--muted)" }}>{t("emptyWishlists")}</small>
+            ) : (
+              <div style={{ display: "grid", gap: 6 }}>
+                {wishlists.map((wishlist) => (
+                  <label key={wishlist.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <input
+                      type="checkbox"
+                      checked={requestVisibleWishlistIds.includes(Number(wishlist.id))}
+                      onChange={(event) => {
+                        const wishlistId = Number(wishlist.id);
+                        setRequestVisibleWishlistIds((prev) => {
+                          const set = new Set(prev.map(Number));
+                          if (event.target.checked) set.add(wishlistId);
+                          else set.delete(wishlistId);
+                          return ownWishlistIds.filter((id) => set.has(id));
+                        });
+                      }}
+                    />
+                    <span>{wishlist.title}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
 
           {friendError ? <small style={{ color: "#af2f1f" }}>{friendError}</small> : null}
 
@@ -253,13 +308,45 @@ export default function Dashboard({ token, user }) {
               <p style={{ margin: 0, color: "var(--muted)" }}>{t("noIncomingRequests")}</p>
             ) : (
               incomingRequests.map((request) => (
-                <div className="friend-request-row" key={request.id} style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
+                <div className="friend-request-row" key={request.id} style={{ display: "grid", gap: 10 }}>
                   <span>@{request.username} ({request.display_name})</span>
-                  <div className="friend-request-actions" style={{ display: "flex", gap: 8 }}>
+                  <div style={{ display: "grid", gap: 6 }}>
+                    <small style={{ color: "var(--muted)" }}>{t("friendAcceptVisibleWishlists")}</small>
+                    {wishlists.length === 0 ? (
+                      <small style={{ color: "var(--muted)" }}>{t("emptyWishlists")}</small>
+                    ) : (
+                      wishlists.map((wishlist) => (
+                        <label key={`${request.id}-${wishlist.id}`} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input
+                            type="checkbox"
+                            checked={(incomingVisibleByRequest[request.id] || ownWishlistIds).includes(Number(wishlist.id))}
+                            onChange={(event) => {
+                              const wishlistId = Number(wishlist.id);
+                              setIncomingVisibleByRequest((prev) => {
+                                const current = new Set(((prev[request.id] || ownWishlistIds)).map(Number));
+                                if (event.target.checked) current.add(wishlistId);
+                                else current.delete(wishlistId);
+                                return {
+                                  ...prev,
+                                  [request.id]: ownWishlistIds.filter((id) => current.has(id)),
+                                };
+                              });
+                            }}
+                          />
+                          <span>{wishlist.title}</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                  <div className="friend-request-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <button
                       type="button"
                       onClick={async () => {
-                        await acceptFriendRequest(request.id, token);
+                        await acceptFriendRequest(
+                          request.id,
+                          incomingVisibleByRequest[request.id] || ownWishlistIds,
+                          token,
+                        );
                         await Promise.all([refreshFriendsData(), refreshSharedWishlists()]);
                       }}
                       style={{ padding: "8px 12px", borderRadius: 8, background: "#2563eb", color: "white" }}

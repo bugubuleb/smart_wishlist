@@ -180,11 +180,17 @@ export async function bootstrapDatabase() {
       id SERIAL PRIMARY KEY,
       from_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       to_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      from_visible_wishlist_ids INTEGER[] NOT NULL DEFAULT '{}',
       status VARCHAR(20) NOT NULL DEFAULT 'pending',
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW(),
       CONSTRAINT friend_requests_no_self CHECK (from_user_id <> to_user_id)
     )
+  `);
+
+  await pool.query(`
+    ALTER TABLE friend_requests
+    ADD COLUMN IF NOT EXISTS from_visible_wishlist_ids INTEGER[] NOT NULL DEFAULT '{}'
   `);
 
   await pool.query(`

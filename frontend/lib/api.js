@@ -73,18 +73,19 @@ export function getFriends(token) {
   });
 }
 
-export function sendFriendRequest(username, token) {
+export function sendFriendRequest(username, visibleWishlistIds, token) {
   return request("/friends/request", {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ username }),
+    body: JSON.stringify({ username, visibleWishlistIds }),
   });
 }
 
-export function acceptFriendRequest(requestId, token) {
+export function acceptFriendRequest(requestId, visibleWishlistIds, token) {
   return request(`/friends/requests/${requestId}/accept`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ visibleWishlistIds }),
   });
 }
 
