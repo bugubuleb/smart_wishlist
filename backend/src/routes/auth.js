@@ -22,8 +22,11 @@ const currencySchema = z.object({
 });
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  identifier: z.string().trim().min(3).max(255).optional(),
+  email: z.string().email().optional(),
   password: z.string().min(8),
+}).refine((value) => Boolean(value.identifier || value.email), {
+  message: "Identifier is required",
 });
 
 const lookupUsernameSchema = z.object({
@@ -73,10 +76,14 @@ authRouter.post("/auth/login", async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Invalid payload" });
 
-  const { email, password } = parsed.data;
+  const loginIdentifier = String(parsed.data.identifier || parsed.data.email || "").trim().toLowerCase();
+  const { password } = parsed.data;
   const result = await pool.query(
-    "SELECT id, email, password_hash, display_name, username, preferred_language, preferred_currency FROM users WHERE email = $1",
-    [email],
+    `SELECT id, email, password_hash, display_name, username, preferred_language, preferred_currency
+     FROM users
+     WHERE LOWER(email) = $1 OR LOWER(username) = $1
+     LIMIT 1`,
+    [loginIdentifier],
   );
 
   if (!result.rowCount) return res.status(401).json({ message: "Invalid credentials" });

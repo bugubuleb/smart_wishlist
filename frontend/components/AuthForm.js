@@ -22,7 +22,9 @@ export default function AuthForm({ onAuth, initialMode = "login" }) {
     setLoading(true);
 
     try {
-      const payload = mode === "register" ? { displayName, username, email, password } : { email, password };
+      const payload = mode === "register"
+        ? { displayName, username, email, password }
+        : { identifier: email, password };
       const result = mode === "register" ? await register(payload) : await login(payload);
       setToken(result.accessToken);
       onAuth(result.user);
@@ -51,15 +53,16 @@ export default function AuthForm({ onAuth, initialMode = "login" }) {
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value)}
+            placeholder={t("username")}
             style={{ padding: 12, borderRadius: 10, border: "1px solid var(--line)" }}
           />
         </>
       ) : null}
       <input
-        type="email"
+        type={mode === "register" ? "email" : "text"}
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        placeholder={t("email")}
+        placeholder={mode === "register" ? t("email") : t("emailOrUsername")}
         style={{ padding: 12, borderRadius: 10, border: "1px solid var(--line)" }}
       />
       <input
