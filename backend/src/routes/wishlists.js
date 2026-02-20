@@ -26,6 +26,9 @@ const contributeSchema = z.object({
   alias: z.string().trim().min(1).max(80).optional(),
   amount: z.number().positive(),
 });
+const reserveSchema = z.object({
+  alias: z.string().trim().min(1).max(80).optional(),
+});
 const removeItemSchema = z.object({
   reason: z.string().min(3).max(280).default("Товар больше недоступен"),
 });
@@ -431,6 +434,89 @@ wishlistRouter.patch("/items/:itemId/priority", requireAuth, async (req, res) =>
   return res.json(updated.rows[0]);
 });
 
+wishlistRouter.post("/items/:itemId/reserve", optionalAuth, async (req, res) => {
+  const parsed = reserveSchema.safeParse(req.body || {});
+  if (!parsed.success) return res.status(400).json({ message: "Invalid payload" });
+
+  const actorAlias = await resolveActorAlias(req, parsed.data.alias);
+  const item = await pool.query(
+    `SELECT wi.id, wi.item_status, w.slug
+     FROM wishlist_items wi
+     JOIN wishlists w ON w.id = wi.wishlist_id
+     WHERE wi.id = $1`,
+    [req.params.itemId],
+  );
+
+  if (!item.rowCount) return res.status(404).json({ message: "Item not found" });
+  if (item.rows[0].item_status !== "active") {
+    return res.status(409).json({ message: "Item is unavailable" });
+  }
+
+  const existing = await pool.query(
+    `SELECT id, reserver_user_id, reserver_alias
+     FROM reservations
+     WHERE item_id = $1 AND status = 'reserved'
+     ORDER BY id DESC
+     LIMIT 1`,
+    [req.params.itemId],
+  );
+
+  if (existing.rowCount) {
+    const row = existing.rows[0];
+    const isSameUser = req.user?.userId && Number(row.reserver_user_id) === Number(req.user.userId);
+    const isSameAlias = !req.user?.userId && row.reserver_alias?.toLowerCase?.() === actorAlias.toLowerCase();
+    if (isSameUser || isSameAlias) {
+      return res.json({ ok: true, mode: "already_reserved" });
+    }
+    return res.status(409).json({ message: "Gift is already reserved" });
+  }
+
+  await pool.query(
+    `INSERT INTO reservations (item_id, reserver_user_id, reserver_alias, status)
+     VALUES ($1, $2, $3, 'reserved')`,
+    [req.params.itemId, req.user?.userId || null, actorAlias],
+  );
+
+  broadcast(item.rows[0].slug, { type: "reservation.updated", itemId: Number(req.params.itemId) });
+  return res.status(201).json({ ok: true, mode: "reserved" });
+});
+
+wishlistRouter.delete("/items/:itemId/reserve", optionalAuth, async (req, res) => {
+  const parsed = reserveSchema.safeParse(req.body || {});
+  if (!parsed.success) return res.status(400).json({ message: "Invalid payload" });
+
+  const item = await pool.query(
+    `SELECT wi.id, wi.item_status, w.slug
+     FROM wishlist_items wi
+     JOIN wishlists w ON w.id = wi.wishlist_id
+     WHERE wi.id = $1`,
+    [req.params.itemId],
+  );
+  if (!item.rowCount) return res.status(404).json({ message: "Item not found" });
+
+  const existing = await pool.query(
+    `SELECT id, reserver_user_id, reserver_alias
+     FROM reservations
+     WHERE item_id = $1 AND status = 'reserved'
+     ORDER BY id DESC
+     LIMIT 1`,
+    [req.params.itemId],
+  );
+  if (!existing.rowCount) return res.json({ ok: true, mode: "already_unreserved" });
+
+  const row = existing.rows[0];
+  const fallbackAlias = parsed.data.alias?.trim() || "";
+  const isSameUser = req.user?.userId && Number(row.reserver_user_id) === Number(req.user.userId);
+  const isSameAlias = !req.user?.userId && fallbackAlias && row.reserver_alias?.toLowerCase?.() === fallbackAlias.toLowerCase();
+  if (!isSameUser && !isSameAlias) {
+    return res.status(403).json({ message: "Only current reserver can cancel reservation" });
+  }
+
+  await pool.query("DELETE FROM reservations WHERE id = $1", [row.id]);
+  broadcast(item.rows[0].slug, { type: "reservation.updated", itemId: Number(req.params.itemId) });
+  return res.json({ ok: true, mode: "unreserved" });
+});
+
 wishlistRouter.get("/wishlists/:slug", optionalAuth, async (req, res) => {
   const wishlistResult = await pool.query(
     `SELECT id, owner_id, title, slug, is_public, min_contribution, due_at,
@@ -472,6 +558,8 @@ wishlistRouter.get("/wishlists/:slug", optionalAuth, async (req, res) => {
     `SELECT wi.id, wi.title, wi.product_url, wi.image_url, wi.target_price, wi.priority, wi.item_status, wi.removed_reason,
             COALESCE((SELECT SUM(c.amount) FROM contributions c WHERE c.item_id = wi.id), 0) AS collected,
             COALESCE((SELECT COUNT(1) FROM contributions c WHERE c.item_id = wi.id), 0) AS contributors_count,
+            EXISTS(SELECT 1 FROM reservations r WHERE r.item_id = wi.id AND r.status = 'reserved') AS is_reserved,
+            (SELECT r.reserver_user_id FROM reservations r WHERE r.item_id = wi.id AND r.status = 'reserved' ORDER BY r.id DESC LIMIT 1) AS reserved_user_id,
             ir.user_id AS responsible_user_id
      FROM wishlist_items wi
      LEFT JOIN item_responsibles ir ON ir.item_id = wi.id
@@ -500,6 +588,8 @@ wishlistRouter.get("/wishlists/:slug", optionalAuth, async (req, res) => {
       priority: item.priority || "medium",
       collected: collectedEffective,
       contributors_count: Number(item.contributors_count || 0),
+      is_reserved: Boolean(item.is_reserved),
+      is_reserved_me: Boolean(req.user?.userId && Number(item.reserved_user_id) === Number(req.user.userId)),
       responsible_user_id: item.responsible_user_id,
       is_responsible_me: Boolean(req.user?.userId && Number(item.responsible_user_id) === Number(req.user.userId)),
       item_status: item.item_status,

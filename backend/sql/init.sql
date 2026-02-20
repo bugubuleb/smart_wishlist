@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS wishlist_items (
 CREATE TABLE IF NOT EXISTS reservations (
   id SERIAL PRIMARY KEY,
   item_id INTEGER NOT NULL REFERENCES wishlist_items(id) ON DELETE CASCADE,
+  reserver_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
   reserver_alias VARCHAR(80) NOT NULL,
   status VARCHAR(20) NOT NULL DEFAULT 'reserved',
   created_at TIMESTAMPTZ DEFAULT NOW()

@@ -93,6 +93,11 @@ export async function bootstrapDatabase() {
   `);
 
   await pool.query(`
+    ALTER TABLE reservations
+    ADD COLUMN IF NOT EXISTS reserver_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS contribution_credits (
       id SERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

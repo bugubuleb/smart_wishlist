@@ -172,6 +172,22 @@ export function contributeToItem(itemId, amount, token) {
   });
 }
 
+export function reserveItem(itemId, token) {
+  return request(`/items/${itemId}/reserve`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify({}),
+  });
+}
+
+export function unreserveItem(itemId, token) {
+  return request(`/items/${itemId}/reserve`, {
+    method: "DELETE",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify({}),
+  });
+}
+
 export function setItemResponsible(itemId, token) {
   return request(`/items/${itemId}/responsible`, {
     method: "POST",

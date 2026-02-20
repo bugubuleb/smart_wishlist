@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { useLanguage } from "@/components/LanguageProvider";
 
-export default function WishlistItemCard({ item, viewerRole, minContribution, onContribute, onSetResponsible, onUnsetResponsible, onSetPriority, onRemove }) {
+export default function WishlistItemCard({ item, viewerRole, minContribution, onContribute, onReserve, onUnreserve, onSetResponsible, onUnsetResponsible, onSetPriority, onRemove }) {
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -98,7 +98,8 @@ export default function WishlistItemCard({ item, viewerRole, minContribution, on
       <progress value={progressValue} max={progressMax} style={{ width: "100%", height: 10 }} />
 
       <small style={{ color: "var(--muted)" }}>
-        {isUnavailable ? `${t("removedPrefix")} ${item.removed_reason || "unavailable"}` : t("giftFree")}
+        {isUnavailable ? `${t("removedPrefix")} ${item.removed_reason || "unavailable"}` : item.is_reserved ? t("giftReserved") : t("giftFree")}
+        {item.is_reserved_me ? ` • ${t("reservedByYou")}` : ""}
         {item.is_responsible_me ? ` • ${t("youResponsible")}` : ""}
         {item.is_fully_funded ? " • done" : ""}
       </small>
@@ -139,6 +140,28 @@ export default function WishlistItemCard({ item, viewerRole, minContribution, on
 
       {viewerRole === "guest" ? (
         <div style={{ display: "grid", gap: 8 }}>
+          <button
+            type="button"
+            disabled={busy || isUnavailable || (item.is_reserved && !item.is_reserved_me)}
+            onClick={async () => {
+              setBusy(true);
+              setError("");
+              try {
+                if (item.is_reserved_me) {
+                  await onUnreserve(item.id);
+                } else {
+                  await onReserve(item.id);
+                }
+              } catch (err) {
+                setError(err.message || "Failed to update reservation");
+              } finally {
+                setBusy(false);
+              }
+            }}
+            style={{ padding: 10, border: 0, borderRadius: 8, background: item.is_reserved_me ? "#0b7a3e" : "#334155", color: "white" }}
+          >
+            {item.is_reserved_me ? t("unreserve") : t("reserve")}
+          </button>
           <button
             type="button"
             disabled={busy || isUnavailable}

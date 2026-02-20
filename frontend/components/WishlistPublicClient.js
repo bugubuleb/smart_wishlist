@@ -7,7 +7,7 @@ import AddItemForm from "@/components/AddItemForm";
 import { useLanguage } from "@/components/LanguageProvider";
 import LiveEvents from "@/components/LiveEvents";
 import WishlistItemCard from "@/components/WishlistItemCard";
-import { contributeToItem, deleteWishlist, getWishlist, removeItem, setItemPriority, setItemResponsible, setWishlistVisibility, unsetItemResponsible } from "@/lib/api";
+import { contributeToItem, deleteWishlist, getWishlist, removeItem, reserveItem, setItemPriority, setItemResponsible, setWishlistVisibility, unreserveItem, unsetItemResponsible } from "@/lib/api";
 import { connectWishlistSocket } from "@/lib/realtime";
 import { getToken } from "@/lib/session";
 
@@ -180,6 +180,16 @@ export default function WishlistPublicClient({ slug }) {
               minContribution={minContribution}
               onContribute={async (itemId, amount) => {
                 const result = await contributeToItem(itemId, amount, getToken() || undefined);
+                await loadWishlist();
+                return result;
+              }}
+              onReserve={async (itemId) => {
+                const result = await reserveItem(itemId, getToken() || undefined);
+                await loadWishlist();
+                return result;
+              }}
+              onUnreserve={async (itemId) => {
+                const result = await unreserveItem(itemId, getToken() || undefined);
                 await loadWishlist();
                 return result;
               }}
