@@ -45,6 +45,9 @@
 #### 2.4 Вклады и финансирование
 - Внесение суммы с проверкой минимального вклада.
 - Полоса прогресса по каждому подарку.
+- Если введенная сумма больше остатка по товару:
+  - остаток автоматически переносится на другие активные товары этого же вишлиста по приоритету (`high -> medium -> low`);
+  - если подходящих товаров больше нет, нераспределенная часть возвращается и не учитывается как расход по вишлисту.
 - Когда подарок полностью профинансирован:
   - карточка подсвечивается зеленоватым фоном;
   - поле суммы и кнопка вклада скрываются.
@@ -65,8 +68,13 @@
 
 #### 2.8 Социальный слой
 - Запросы в друзья (отправка, принятие, отклонение).
+- При отправке и принятии заявки можно выбрать, какие вишлисты будут видны новому другу.
 - Вкладка друзей как отдельный раздел.
 - Уведомления по новым вишлистам и по изменениям вкладов.
+- Для вишлиста "для друга":
+  - редактирование доступно по кнопке `Редактировать`;
+  - редактировать могут создатель и сам получатель (если это пользователь платформы);
+  - получатель не может бронировать/назначать ответственность/вносить вклад.
 
 #### 2.9 Темы, локализация, валюта
 - Темная/светлая тема.
@@ -164,6 +172,7 @@ smart_wishlist/
 - WebSocket endpoint: `ws://localhost:8000/ws/wishlists/:slug`
 - На фронте используется `connectWishlistSocket`.
 - Сервер распределяет события по комнатам (`backend/src/realtime/hub.js`).
+- В блоке `Live updates` показываются только события удаления товара и изменения приоритета.
 
 ### 9. Запуск
 
@@ -273,6 +282,9 @@ It is implemented as a fullstack JavaScript product with PostgreSQL.
 #### 2.4 Contributions
 - Contribution amount validation against minimum threshold.
 - Progress bar per gift.
+- If entered amount is higher than remaining need for the current item:
+  - the remainder is automatically moved to other active items in the same wishlist by priority (`high -> medium -> low`);
+  - if there are no eligible items, the remainder is refunded and is not counted as wishlist spend.
 - Fully funded gift behavior:
   - card gets a green-tinted background;
   - amount input and contribute button are hidden.
@@ -293,8 +305,13 @@ It is implemented as a fullstack JavaScript product with PostgreSQL.
 
 #### 2.8 Social layer
 - Friend requests (send/accept/reject).
+- Sender and receiver can choose which wishlists become visible when request is sent/accepted.
 - Dedicated friends tab.
 - Notifications for new wishlists and contribution-related updates.
+- For `friend` recipient-mode wishlists:
+  - editing is available only after pressing the `Edit` button;
+  - both creator and recipient can edit;
+  - recipient cannot reserve, become responsible, or contribute.
 
 #### 2.9 Themes, localization, currency
 - Dark/light theme.
@@ -387,6 +404,7 @@ Source of truth: `backend/sql/init.sql`.
 - WS endpoint: `ws://localhost:8000/ws/wishlists/:slug`
 - Client helper: `frontend/lib/realtime.js`
 - Room broadcast hub: `backend/src/realtime/hub.js`
+- `Live updates` panel intentionally shows only item-removal and item-priority-change events.
 
 ### 9. Running locally
 
@@ -448,4 +466,3 @@ npm run dev
 - Move uploaded images to object storage (S3-compatible).
 - Add stronger e2e coverage for critical product flows.
 - Domain-level telemetry and cache tuning for autofill quality.
-

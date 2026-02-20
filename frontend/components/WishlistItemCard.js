@@ -36,12 +36,14 @@ export default function WishlistItemCard({ item, viewerRole, minContribution, sh
     try {
       const result = await onContribute(item.id, numericAmount);
       setAmount("");
-      if (result?.refundedAmount > 0) {
-        setContributionInfo(
-          `${t("contributionAccepted")} ${result.acceptedAmount} ₽ • ${t("contributionRefunded")} ${result.refundedAmount} ₽. ${t("contributionProportional")}`,
-        );
-      } else if (result?.acceptedAmount > 0) {
+      if (result?.acceptedAmount > 0) {
         let info = `${t("contributionAccepted")} ${result.acceptedAmount} ₽`;
+        if (result.transferredAmount > 0) {
+          info += ` • ${t("contributionTransferred")} ${result.transferredAmount} ₽`;
+        }
+        if (result.refundedAmount > 0) {
+          info += ` • ${t("contributionRefunded")} ${result.refundedAmount} ₽`;
+        }
         if (result.creditUsedAmount > 0) {
           info += ` • ${t("creditUsed")} ${result.creditUsedAmount} ₽`;
         }

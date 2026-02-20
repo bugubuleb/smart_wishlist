@@ -743,27 +743,72 @@ wishlistRouter.post("/items/:itemId/contribute", optionalAuth, async (req, res) 
 
   const targetPrice = Number(item.rows[0].target_price || 0);
   const collected = Number(item.rows[0].collected || 0);
-  const incomingAmount = Number(parsed.data.amount);
-  const nextCollected = collected + incomingAmount;
+  const incomingAmount = roundMoney(Number(parsed.data.amount));
 
   if (targetPrice > 0 && collected >= targetPrice) {
     return res.status(409).json({ message: "Gift is already fully funded" });
   }
 
-  let acceptedAmount = incomingAmount;
-  let refundedAmount = 0;
+  const allocations = [];
+  let remainingAmount = incomingAmount;
 
-  if (targetPrice > 0 && nextCollected > targetPrice) {
-    const ratio = targetPrice / nextCollected;
-    acceptedAmount = roundMoney(incomingAmount * ratio);
-    refundedAmount = roundMoney(incomingAmount - acceptedAmount);
+  const currentNeed = targetPrice > 0 ? roundMoney(Math.max(0, targetPrice - collected)) : remainingAmount;
+  const currentAccepted = roundMoney(Math.min(remainingAmount, currentNeed));
+  if (currentAccepted > 0) {
+    allocations.push({ itemId: Number(req.params.itemId), amount: currentAccepted, isPrimary: true });
+    remainingAmount = roundMoney(remainingAmount - currentAccepted);
   }
 
+  if (remainingAmount > 0) {
+    const candidates = await pool.query(
+      `SELECT wi.id, wi.target_price,
+              COALESCE((SELECT SUM(c.amount) FROM contributions c WHERE c.item_id = wi.id), 0) AS collected
+       FROM wishlist_items wi
+       WHERE wi.wishlist_id = $1
+         AND wi.id <> $2
+         AND wi.item_status = 'active'
+       ORDER BY
+         CASE wi.priority
+           WHEN 'high' THEN 3
+           WHEN 'medium' THEN 2
+           ELSE 1
+         END DESC,
+         wi.id DESC`,
+      [item.rows[0].wishlist_id, Number(req.params.itemId)],
+    );
+
+    for (const candidate of candidates.rows) {
+      if (remainingAmount <= 0) break;
+      const candidateTarget = Number(candidate.target_price || 0);
+      if (candidateTarget <= 0) continue;
+
+      const candidateCollected = Number(candidate.collected || 0);
+      const candidateNeed = roundMoney(Math.max(0, candidateTarget - candidateCollected));
+      if (candidateNeed <= 0) continue;
+
+      const transferred = roundMoney(Math.min(remainingAmount, candidateNeed));
+      if (transferred <= 0) continue;
+
+      allocations.push({ itemId: Number(candidate.id), amount: transferred, isPrimary: false });
+      remainingAmount = roundMoney(remainingAmount - transferred);
+    }
+  }
+
+  const totalAcceptedAmount = roundMoney(
+    allocations.reduce((sum, allocation) => sum + Number(allocation.amount || 0), 0),
+  );
+  const transferredAmount = roundMoney(
+    allocations
+      .filter((allocation) => !allocation.isPrimary)
+      .reduce((sum, allocation) => sum + Number(allocation.amount || 0), 0),
+  );
+  const refundedAmount = roundMoney(Math.max(0, remainingAmount));
+
   let creditUsedAmount = 0;
-  let chargedAmount = acceptedAmount;
+  let chargedAmount = totalAcceptedAmount;
   let droppedCreditAmount = 0;
 
-  if (req.user?.userId && acceptedAmount > 0) {
+  if (req.user?.userId && totalAcceptedAmount > 0) {
     const credits = await pool.query(
       `SELECT id, amount
        FROM contribution_credits
@@ -772,7 +817,7 @@ wishlistRouter.post("/items/:itemId/contribute", optionalAuth, async (req, res) 
       [req.user.userId, item.rows[0].wishlist_id],
     );
 
-    let remainingToCover = acceptedAmount;
+    let remainingToCover = totalAcceptedAmount;
     for (const credit of credits.rows) {
       if (remainingToCover <= 0) break;
 
@@ -799,7 +844,7 @@ wishlistRouter.post("/items/:itemId/contribute", optionalAuth, async (req, res) 
       }
     }
 
-    chargedAmount = roundMoney(Math.max(0, acceptedAmount - creditUsedAmount));
+    chargedAmount = roundMoney(Math.max(0, totalAcceptedAmount - creditUsedAmount));
 
     if (creditUsedAmount > 0) {
       const remainingCredits = await pool.query(
@@ -822,24 +867,26 @@ wishlistRouter.post("/items/:itemId/contribute", optionalAuth, async (req, res) 
     }
   }
 
-  if (acceptedAmount <= 0) {
-    return res.status(409).json({ message: "Gift is already fully funded" });
+  if (totalAcceptedAmount <= 0) {
+    return res.status(409).json({ message: "No available items for contribution" });
   }
 
-  await pool.query(
-    "INSERT INTO contributions (item_id, contributor_user_id, contributor_alias, amount) VALUES ($1, $2, $3, $4)",
-    [req.params.itemId, req.user?.userId || null, actorAlias, acceptedAmount],
-  );
-
-  broadcast(item.rows[0].slug, { type: "contribution.updated", itemId: Number(req.params.itemId) });
+  for (const allocation of allocations) {
+    await pool.query(
+      "INSERT INTO contributions (item_id, contributor_user_id, contributor_alias, amount) VALUES ($1, $2, $3, $4)",
+      [allocation.itemId, req.user?.userId || null, actorAlias, allocation.amount],
+    );
+    broadcast(item.rows[0].slug, { type: "contribution.updated", itemId: allocation.itemId });
+  }
 
   res.status(201).json({
     ok: true,
-    acceptedAmount: roundMoney(acceptedAmount),
+    acceptedAmount: roundMoney(totalAcceptedAmount),
     refundedAmount: roundMoney(refundedAmount),
+    transferredAmount: roundMoney(transferredAmount),
     creditUsedAmount: roundMoney(creditUsedAmount),
     chargedAmount: roundMoney(chargedAmount),
     droppedCreditAmount: roundMoney(droppedCreditAmount),
-    distribution: targetPrice > 0 && nextCollected > targetPrice ? "proportional" : "none",
+    distribution: transferredAmount > 0 ? "priority_transfer" : refundedAmount > 0 ? "refund_only" : "none",
   });
 });
