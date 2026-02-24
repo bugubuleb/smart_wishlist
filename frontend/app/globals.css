@@ -374,6 +374,13 @@ button:active {
   height: 20px;
 }
 
+.settings-icon {
+  width: 24px;
+  height: 24px;
+  display: block;
+  margin: 0;
+}
+
 .wishlist-status-block {
   width: min(840px, 100%);
   min-height: 220px;
@@ -483,6 +490,12 @@ button:active {
     width: 48px;
     height: 48px;
     min-height: 48px;
+    place-items: center;
+  }
+
+  .global-settings-trigger .settings-icon {
+    width: 28px;
+    height: 28px;
   }
 
   .global-logout {
