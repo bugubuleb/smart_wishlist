@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { useLanguage } from "@/components/LanguageProvider";
 import {
   getNotificationPreferences,
   getNotifications,
@@ -26,6 +27,7 @@ export default function NotificationsScreen() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [prefs, setPrefs] = useState(null);
   const token = useMemo(() => getToken(), []);
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (!token) return undefined;
@@ -89,8 +91,8 @@ export default function NotificationsScreen() {
     return (
       <main className="container">
         <section className="card" style={{ padding: 16, width: "100%" }}>
-          <h2 style={{ marginTop: 0 }}>Уведомления</h2>
-          <p style={{ margin: 0, color: "var(--muted)" }}>Войди, чтобы увидеть уведомления.</p>
+          <h2 style={{ marginTop: 0 }}>{t("notificationsTitle")}</h2>
+          <p style={{ margin: 0, color: "var(--muted)" }}>{t("loginToViewNotifications")}</p>
         </section>
       </main>
     );
@@ -100,7 +102,7 @@ export default function NotificationsScreen() {
     <main className="container">
       <section className="card notifications-page" style={{ padding: 16, width: "100%", display: "grid", gap: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-          <h2 style={{ margin: 0 }}>Уведомления {unreadCount > 0 ? `(${Math.min(unreadCount, 99)})` : ""}</h2>
+          <h2 style={{ margin: 0 }}>{t("notificationsTitle")} {unreadCount > 0 ? `(${Math.min(unreadCount, 99)})` : ""}</h2>
           <button
             type="button"
             className="notify-mark-read"
@@ -110,18 +112,18 @@ export default function NotificationsScreen() {
               setNotifications((prev) => prev.map((item) => ({ ...item, is_read: true })));
             }}
           >
-            Прочитать все
+            {t("markAllRead")}
           </button>
         </div>
 
         {prefs ? (
           <div className="notify-prefs">
-            <label><input type="checkbox" checked={prefs.inAppEnabled} onChange={(e) => togglePref({ inAppEnabled: e.target.checked })} /> In-app</label>
-            <label><input type="checkbox" checked={prefs.pushEnabled} onChange={async (e) => { await togglePref({ pushEnabled: e.target.checked }); await togglePush(e.target.checked); }} /> Push</label>
-            <label><input type="checkbox" checked={prefs.wishlistSharedEnabled} onChange={(e) => togglePref({ wishlistSharedEnabled: e.target.checked })} /> Новый вишлист/товар</label>
-            <label><input type="checkbox" checked={prefs.reservationEnabled} onChange={(e) => togglePref({ reservationEnabled: e.target.checked })} /> Резервы</label>
-            <label><input type="checkbox" checked={prefs.fundedEnabled} onChange={(e) => togglePref({ fundedEnabled: e.target.checked })} /> Полное финансирование</label>
-            <label><input type="checkbox" checked={prefs.friendRequestsEnabled} onChange={(e) => togglePref({ friendRequestsEnabled: e.target.checked })} /> Друзья</label>
+            <label><input type="checkbox" checked={prefs.inAppEnabled} onChange={(e) => togglePref({ inAppEnabled: e.target.checked })} /> {t("notificationsInApp")}</label>
+            <label><input type="checkbox" checked={prefs.pushEnabled} onChange={async (e) => { await togglePref({ pushEnabled: e.target.checked }); await togglePush(e.target.checked); }} /> {t("notificationsPush")}</label>
+            <label><input type="checkbox" checked={prefs.wishlistSharedEnabled} onChange={(e) => togglePref({ wishlistSharedEnabled: e.target.checked })} /> {t("notificationsWishlist")}</label>
+            <label><input type="checkbox" checked={prefs.reservationEnabled} onChange={(e) => togglePref({ reservationEnabled: e.target.checked })} /> {t("notificationsReservations")}</label>
+            <label><input type="checkbox" checked={prefs.fundedEnabled} onChange={(e) => togglePref({ fundedEnabled: e.target.checked })} /> {t("notificationsFunding")}</label>
+            <label><input type="checkbox" checked={prefs.friendRequestsEnabled} onChange={(e) => togglePref({ friendRequestsEnabled: e.target.checked })} /> {t("notificationsFriends")}</label>
           </div>
         ) : null}
 

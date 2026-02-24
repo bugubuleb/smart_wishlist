@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { useCurrency } from "@/components/CurrencyProvider";
 import { useLanguage } from "@/components/LanguageProvider";
 
 export default function WishlistItemCard({ item, viewerRole, minContribution, showReservationActions = true, canContribute = true, onContribute, onReserve, onUnreserve, onSetResponsible, onUnsetResponsible, onSetPriority, onRemove }) {
@@ -10,6 +11,7 @@ export default function WishlistItemCard({ item, viewerRole, minContribution, sh
   const [error, setError] = useState("");
   const [contributionInfo, setContributionInfo] = useState("");
   const { t } = useLanguage();
+  const { currency } = useCurrency();
 
   const progressMax = item.target_price > 0 ? item.target_price : 1;
   const progressValue = Math.min(item.collected || 0, progressMax);
@@ -37,21 +39,21 @@ export default function WishlistItemCard({ item, viewerRole, minContribution, sh
       const result = await onContribute(item.id, numericAmount);
       setAmount("");
       if (result?.acceptedAmount > 0) {
-        let info = `${t("contributionAccepted")} ${result.acceptedAmount} ₽`;
+        let info = `${t("contributionAccepted")} ${result.acceptedAmount} ${currency}`;
         if (result.transferredAmount > 0) {
-          info += ` • ${t("contributionTransferred")} ${result.transferredAmount} ₽`;
+          info += ` • ${t("contributionTransferred")} ${result.transferredAmount} ${currency}`;
         }
         if (result.refundedAmount > 0) {
-          info += ` • ${t("contributionRefunded")} ${result.refundedAmount} ₽`;
+          info += ` • ${t("contributionRefunded")} ${result.refundedAmount} ${currency}`;
         }
         if (result.creditUsedAmount > 0) {
-          info += ` • ${t("creditUsed")} ${result.creditUsedAmount} ₽`;
+          info += ` • ${t("creditUsed")} ${result.creditUsedAmount} ${currency}`;
         }
         if (result.chargedAmount >= 0) {
-          info += ` • ${t("chargedNow")} ${result.chargedAmount} ₽`;
+          info += ` • ${t("chargedNow")} ${result.chargedAmount} ${currency}`;
         }
         if (result.droppedCreditAmount > 0) {
-          info += ` • ${t("creditDropped")} ${result.droppedCreditAmount} ₽`;
+          info += ` • ${t("creditDropped")} ${result.droppedCreditAmount} ${currency}`;
         }
         setContributionInfo(info);
       }
@@ -93,8 +95,8 @@ export default function WishlistItemCard({ item, viewerRole, minContribution, sh
       </a>
 
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
-        <span>{t("goal")} {item.target_price || 0} ₽</span>
-        <span>{t("collected")} {item.collected || 0} ₽</span>
+        <span>{t("goal")} {item.target_price || 0} {currency}</span>
+        <span>{t("collected")} {item.collected || 0} {currency}</span>
       </div>
 
       <progress value={progressValue} max={progressMax} style={{ width: "100%", height: 10 }} />
@@ -195,10 +197,10 @@ export default function WishlistItemCard({ item, viewerRole, minContribution, sh
               <input
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder="₽"
+                placeholder={currency}
                 style={{ width: "100%", padding: 10, border: "1px solid var(--line)", borderRadius: 8 }}
               />
-              <small style={{ color: "var(--muted)" }}>{t("minContribution")} {minContribution} ₽</small>
+              <small style={{ color: "var(--muted)" }}>{t("minContribution")} {minContribution} {currency}</small>
             </>
           ) : null}
           {!item.is_fully_funded && canContribute ? (

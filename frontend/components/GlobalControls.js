@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import CurrencySwitcher from "@/components/CurrencySwitcher";
+import { useLanguage } from "@/components/LanguageProvider";
 import GlobalLogoutButton from "@/components/GlobalLogoutButton";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -52,6 +53,7 @@ function toUint8Array(base64String) {
 export default function GlobalControls() {
   const router = useRouter();
   const pathname = usePathname();
+  const { t } = useLanguage();
   const [isAuthed, setIsAuthed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("general");
@@ -207,8 +209,12 @@ export default function GlobalControls() {
           aria-label="Settings"
           title="Settings"
           onClick={() => {
-            setMobileOpen((prev) => !prev);
-            setActiveTab("general");
+            if (window.matchMedia("(max-width: 960px)").matches) {
+              router.push("/settings");
+            } else {
+              setMobileOpen((prev) => !prev);
+              setActiveTab("general");
+            }
           }}
         >
           <SettingsIcon />
@@ -226,10 +232,10 @@ export default function GlobalControls() {
         <div className="global-settings-panel card">
           <div className="settings-tabs">
             <button type="button" className={activeTab === "general" ? "active" : ""} onClick={() => setActiveTab("general")}>
-              Настройки
+              {t("settingsTab")}
             </button>
             <button type="button" className={activeTab === "notifications" ? "active" : ""} onClick={() => setActiveTab("notifications")}>
-              Уведомления {unreadCount > 0 ? `(${Math.min(unreadCount, 99)})` : ""}
+              {t("notificationsTab")} {unreadCount > 0 ? `(${Math.min(unreadCount, 99)})` : ""}
             </button>
           </div>
 
@@ -260,15 +266,15 @@ export default function GlobalControls() {
             <>
               {isAuthed && prefs ? (
                 <div className="notify-prefs">
-                  <label><input type="checkbox" checked={prefs.inAppEnabled} onChange={(e) => togglePref({ inAppEnabled: e.target.checked })} /> In-app</label>
-                  <label><input type="checkbox" checked={prefs.pushEnabled} onChange={async (e) => { await togglePref({ pushEnabled: e.target.checked }); await togglePushSubscription(e.target.checked); }} /> Push</label>
-                  <label><input type="checkbox" checked={prefs.wishlistSharedEnabled} onChange={(e) => togglePref({ wishlistSharedEnabled: e.target.checked })} /> Новый вишлист</label>
-                  <label><input type="checkbox" checked={prefs.reservationEnabled} onChange={(e) => togglePref({ reservationEnabled: e.target.checked })} /> Резервы</label>
-                  <label><input type="checkbox" checked={prefs.fundedEnabled} onChange={(e) => togglePref({ fundedEnabled: e.target.checked })} /> Полное финансирование</label>
-                  <label><input type="checkbox" checked={prefs.friendRequestsEnabled} onChange={(e) => togglePref({ friendRequestsEnabled: e.target.checked })} /> Друзья</label>
+                  <label><input type="checkbox" checked={prefs.inAppEnabled} onChange={(e) => togglePref({ inAppEnabled: e.target.checked })} /> {t("notificationsInApp")}</label>
+                  <label><input type="checkbox" checked={prefs.pushEnabled} onChange={async (e) => { await togglePref({ pushEnabled: e.target.checked }); await togglePushSubscription(e.target.checked); }} /> {t("notificationsPush")}</label>
+                  <label><input type="checkbox" checked={prefs.wishlistSharedEnabled} onChange={(e) => togglePref({ wishlistSharedEnabled: e.target.checked })} /> {t("notificationsWishlist")}</label>
+                  <label><input type="checkbox" checked={prefs.reservationEnabled} onChange={(e) => togglePref({ reservationEnabled: e.target.checked })} /> {t("notificationsReservations")}</label>
+                  <label><input type="checkbox" checked={prefs.fundedEnabled} onChange={(e) => togglePref({ fundedEnabled: e.target.checked })} /> {t("notificationsFunding")}</label>
+                  <label><input type="checkbox" checked={prefs.friendRequestsEnabled} onChange={(e) => togglePref({ friendRequestsEnabled: e.target.checked })} /> {t("notificationsFriends")}</label>
                 </div>
               ) : (
-                <p style={{ margin: 0, color: "var(--muted)" }}>Войди, чтобы настроить уведомления.</p>
+                <p style={{ margin: 0, color: "var(--muted)" }}>{t("loginToViewNotifications")}</p>
               )}
               {isAuthed ? (
                 <>
@@ -283,7 +289,7 @@ export default function GlobalControls() {
                       setNotifications((prev) => prev.map((item) => ({ ...item, is_read: true })));
                     }}
                   >
-                    Прочитать все
+                    {t("markAllRead")}
                   </button>
                   <ul className="notify-list">
                     {notifications.map((item) => (

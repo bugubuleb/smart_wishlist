@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import CreateWishlistForm from "@/components/CreateWishlistForm";
+import { useCurrency } from "@/components/CurrencyProvider";
 import { useLanguage } from "@/components/LanguageProvider";
 import {
   acceptFriendRequest,
@@ -15,7 +16,7 @@ import {
   sendFriendRequest,
 } from "@/lib/api";
 
-function WishlistList({ items, t }) {
+function WishlistList({ items, t, currency }) {
   return (
     <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "grid", gap: 8, width: "100%" }}>
       {items.map((wishlist) => (
@@ -38,7 +39,7 @@ function WishlistList({ items, t }) {
                 {wishlist.owner_username ? <small style={{ marginLeft: 8, color: "var(--muted)" }}>@{wishlist.owner_username}</small> : null}
               </span>
               <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
-                <small style={{ color: "var(--muted)" }}>{t("invested")}: {Number(wishlist.my_contributed_sum || 0)} ₽</small>
+                <small style={{ color: "var(--muted)" }}>{t("invested")}: {Number(wishlist.my_contributed_sum || 0)} {currency}</small>
                 {wishlist.is_responsible ? <small style={{ color: "#0b7a3e", fontWeight: 700 }}>{t("youResponsible")}</small> : null}
               </span>
             </div>
@@ -63,6 +64,7 @@ export default function Dashboard({ token, user }) {
   const [incomingVisibleByRequest, setIncomingVisibleByRequest] = useState({});
   const [activeTab, setActiveTab] = useState("wishlists");
   const { t } = useLanguage();
+  const { currency } = useCurrency();
   const ownWishlistIds = wishlists.map((wishlist) => Number(wishlist.id));
 
   useEffect(() => {
@@ -143,20 +145,24 @@ export default function Dashboard({ token, user }) {
         .replace("{item}", item)
         .replace("{wishlist}", wishlistTitle)
         .replace("{moved}", String(moved))
-        .replace("{refunded}", String(refunded));
+        .replace("{refunded}", String(refunded))
+        .split("{currency}")
+        .join(currency);
     }
 
     if (moved > 0) {
       return t("redistributedOnlyNotice")
         .replace("{item}", item)
         .replace("{wishlist}", wishlistTitle)
-        .replace("{moved}", String(moved));
+        .replace("{moved}", String(moved))
+        .replace("{currency}", currency);
     }
 
     return t("refundedOnlyNotice")
       .replace("{item}", item)
       .replace("{wishlist}", wishlistTitle)
-      .replace("{refunded}", String(refunded));
+      .replace("{refunded}", String(refunded))
+      .replace("{currency}", currency);
   }
 
   async function handleSendRequest(event) {
@@ -236,7 +242,7 @@ export default function Dashboard({ token, user }) {
             {notifications.length === 0 ? (
               <p style={{ margin: 0, color: "var(--muted)" }}>{t("noNewWishlists")}</p>
             ) : (
-              <WishlistList items={notifications} t={t} />
+              <WishlistList items={notifications} t={t} currency={currency} />
             )}
           </section>
 
@@ -245,7 +251,7 @@ export default function Dashboard({ token, user }) {
             {wishlists.length === 0 ? (
               <p style={{ margin: 0, color: "var(--muted)" }}>{t("emptyWishlists")}</p>
             ) : (
-              <WishlistList items={wishlists} t={t} />
+              <WishlistList items={wishlists} t={t} currency={currency} />
             )}
           </section>
 
@@ -254,7 +260,7 @@ export default function Dashboard({ token, user }) {
             {sharedWishlists.length === 0 ? (
               <p style={{ margin: 0, color: "var(--muted)" }}>{t("emptySharedWishlists")}</p>
             ) : (
-              <WishlistList items={sharedWishlists} t={t} />
+              <WishlistList items={sharedWishlists} t={t} currency={currency} />
             )}
           </section>
         </>

@@ -273,6 +273,57 @@ button {
   font-weight: 700;
 }
 
+.settings-page-mobile {
+  width: min(96vw, 680px);
+}
+
+.settings-mobile-card {
+  width: 100%;
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.settings-mobile-head {
+  display: grid;
+  grid-template-columns: 42px 1fr 42px;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-mobile-head h2 {
+  text-align: center;
+}
+
+.settings-nav-btn {
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--field-bg);
+  color: var(--text);
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.settings-mobile-root,
+.settings-mobile-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-mobile-root button {
+  min-height: 46px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--field-bg);
+  color: var(--text);
+  font-weight: 700;
+}
+
 .notify-toast {
   position: fixed;
   left: 14px;
