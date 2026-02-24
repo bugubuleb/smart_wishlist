@@ -22,10 +22,13 @@ import { getToken } from "@/lib/session";
 function SettingsIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="theme-icon" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M4 7H20M4 12H20M4 17H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <circle cx="8" cy="7" r="2" fill="currentColor" />
-      <circle cx="15" cy="12" r="2" fill="currentColor" />
-      <circle cx="11" cy="17" r="2" fill="currentColor" />
+      <path
+        d="M10.33 3.89a1 1 0 0 1 .94-.7h1.46a1 1 0 0 1 .94.7l.4 1.24a7.6 7.6 0 0 1 1.32.55l1.2-.58a1 1 0 0 1 1.14.2l1.04 1.03a1 1 0 0 1 .2 1.16l-.58 1.19c.2.42.38.87.52 1.32l1.27.41a1 1 0 0 1 .68.95v1.46a1 1 0 0 1-.68.95l-1.27.4a7.3 7.3 0 0 1-.53 1.32l.58 1.2a1 1 0 0 1-.2 1.15l-1.04 1.03a1 1 0 0 1-1.14.2l-1.2-.58c-.42.22-.86.4-1.32.54l-.4 1.27a1 1 0 0 1-.94.69h-1.46a1 1 0 0 1-.94-.7l-.4-1.26a7.4 7.4 0 0 1-1.32-.55l-1.2.58a1 1 0 0 1-1.14-.2l-1.04-1.03a1 1 0 0 1-.2-1.15l.58-1.2a7.3 7.3 0 0 1-.53-1.32l-1.27-.4a1 1 0 0 1-.68-.95v-1.46a1 1 0 0 1 .68-.95l1.27-.41c.14-.45.32-.9.53-1.32l-.58-1.19a1 1 0 0 1 .2-1.16l1.04-1.03a1 1 0 0 1 1.14-.2l1.2.58c.42-.22.86-.4 1.32-.55l.4-1.24Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12" r="2.9" stroke="currentColor" strokeWidth="1.8" />
     </svg>
   );
 }

@@ -15,14 +15,13 @@
     </linearGradient>
   </defs>
 
-  <rect x="48" y="48" width="928" height="928" rx="208" fill="url(#bg)"/>
-  <rect x="56" y="56" width="912" height="912" rx="200" stroke="white" stroke-opacity="0.14" stroke-width="16"/>
+  <rect x="0" y="0" width="1024" height="1024" fill="url(#bg)"/>
 
   <circle cx="756" cy="290" r="70" fill="#8CC3FF" fill-opacity="0.24"/>
   <circle cx="812" cy="390" r="30" fill="#D0E7FF" fill-opacity="0.35"/>
   <circle cx="242" cy="774" r="54" fill="#D0E7FF" fill-opacity="0.18"/>
 
-  <rect x="244" y="208" width="536" height="608" rx="116" fill="url(#glass)" stroke="white" stroke-opacity="0.22" stroke-width="8"/>
+  <rect x="236" y="196" width="552" height="632" rx="120" fill="url(#glass)" stroke="white" stroke-opacity="0.18" stroke-width="8"/>
 
   <path d="M512 302L560 430L694 438L590 520L624 650L512 576L400 650L434 520L330 438L464 430L512 302Z" fill="url(#star)"/>
 

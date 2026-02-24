@@ -144,6 +144,7 @@ button {
   display: none;
   width: 42px;
   height: 42px;
+  min-height: 42px;
   place-items: center;
   border-radius: 999px;
   border: 1px solid var(--line);
@@ -159,6 +160,7 @@ button {
   position: relative;
   width: 42px;
   height: 42px;
+  min-height: 42px;
   display: grid;
   place-items: center;
   border-radius: 999px;
@@ -311,6 +313,7 @@ main {
 .global-logout {
   width: 42px;
   height: 42px;
+  min-height: 42px;
   display: grid;
   place-items: center;
   border-radius: 999px;
@@ -330,6 +333,7 @@ main {
 .lang-btn {
   min-width: 64px;
   height: 42px;
+  min-height: 42px;
   padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -416,18 +420,22 @@ button:active {
     width: min(90vw, 320px);
   }
 
-  .global-settings-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-  }
+.global-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
 
-  .global-settings-row > span {
-    color: var(--muted);
-    font-size: 14px;
-    font-weight: 700;
-  }
+.global-settings-row > span {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.global-settings-row > :last-child {
+  margin-left: auto;
+}
 }
 
 @media (max-width: 768px) {
@@ -451,11 +459,20 @@ button:active {
   .theme-toggle {
     width: 48px;
     height: 48px;
+    min-height: 48px;
   }
 
   .global-logout,
   .lang-btn {
     height: 48px;
+    min-height: 48px;
+  }
+
+  .global-settings-trigger,
+  .global-notify-btn {
+    width: 48px;
+    height: 48px;
+    min-height: 48px;
   }
 
   .global-logout {
@@ -474,6 +491,14 @@ button:active {
   button {
     min-height: 46px;
     font-size: 16px;
+  }
+
+  .global-settings-trigger,
+  .global-notify-btn,
+  .theme-toggle,
+  .lang-btn,
+  .global-logout {
+    min-height: 48px;
   }
 
   .card {
