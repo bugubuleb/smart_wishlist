@@ -267,96 +267,101 @@ wishlistRouter.get("/activity/notifications", requireAuth, async (req, res) => {
 });
 
 wishlistRouter.post("/wishlists", requireAuth, async (req, res) => {
-  const parsed = createWishlistWithMinSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ message: "Invalid payload" });
+  try {
+    const parsed = createWishlistWithMinSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Invalid payload" });
 
-  const slug = makeWishlistSlug(parsed.data.title);
-  const minContribution = parsed.data.minContribution || DEFAULT_MIN_CONTRIBUTION;
-  const dueAt = resolveDueAt(parsed.data.dueDate);
-  if (!dueAt) return res.status(400).json({ message: "Invalid due date" });
-  const recipientData = await resolveRecipientData(parsed.data);
-  if (!recipientData) return res.status(400).json({ message: "Friend name or username is required" });
-  if (recipientData.recipientUserId && recipientData.recipientUserId === req.user.userId) {
-    return res.status(409).json({ message: "Choose self mode for your own wishlist" });
-  }
-  const result = await pool.query(
-    `INSERT INTO wishlists (
-        owner_id, title, slug, is_public, min_contribution, due_at,
-        recipient_mode, recipient_user_id, recipient_name, hide_from_recipient
-     )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-     RETURNING id, title, slug, min_contribution, due_at, recipient_mode, recipient_user_id, recipient_name, hide_from_recipient`,
-    [
-      req.user.userId,
-      parsed.data.title,
-      slug,
-      parsed.data.isPublic !== false,
-      minContribution,
-      dueAt,
-      recipientData.recipientMode,
-      recipientData.recipientUserId,
-      recipientData.recipientName,
-      recipientData.hideFromRecipient,
-    ],
-  );
-
-  const wishlistId = result.rows[0].id;
-  const hiddenUserIds = new Set((parsed.data.hiddenUserIds || []).map((id) => Number(id)));
-  hiddenUserIds.delete(req.user.userId);
-  if (recipientData.recipientUserId && recipientData.hideFromRecipient) {
-    hiddenUserIds.add(Number(recipientData.recipientUserId));
-  }
-
-  if (hiddenUserIds.size > 0) {
-    await pool.query(
-      `INSERT INTO wishlist_hidden_users (wishlist_id, user_id)
-       SELECT $1, UNNEST($2::int[])
-       ON CONFLICT (wishlist_id, user_id) DO NOTHING`,
-      [wishlistId, Array.from(hiddenUserIds)],
-    );
-  }
-
-  if (result.rows[0].slug && parsed.data.isPublic !== false) {
-    const visibleFriends = await pool.query(
-      `SELECT f.friend_user_id
-       FROM friendships f
-       LEFT JOIN wishlist_hidden_users whu
-         ON whu.wishlist_id = $2 AND whu.user_id = f.friend_user_id
-       WHERE f.user_id = $1
-         AND whu.id IS NULL
-         AND NOT ($3 = true AND $4 IS NOT NULL AND f.friend_user_id = $4)`,
+    const slug = makeWishlistSlug(parsed.data.title);
+    const minContribution = parsed.data.minContribution || DEFAULT_MIN_CONTRIBUTION;
+    const dueAt = resolveDueAt(parsed.data.dueDate);
+    if (!dueAt) return res.status(400).json({ message: "Invalid due date" });
+    const recipientData = await resolveRecipientData(parsed.data);
+    if (!recipientData) return res.status(400).json({ message: "Friend name or username is required" });
+    if (recipientData.recipientUserId && recipientData.recipientUserId === req.user.userId) {
+      return res.status(409).json({ message: "Choose self mode for your own wishlist" });
+    }
+    const result = await pool.query(
+      `INSERT INTO wishlists (
+          owner_id, title, slug, is_public, min_contribution, due_at,
+          recipient_mode, recipient_user_id, recipient_name, hide_from_recipient
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING id, title, slug, min_contribution, due_at, recipient_mode, recipient_user_id, recipient_name, hide_from_recipient`,
       [
         req.user.userId,
-        wishlistId,
-        Boolean(result.rows[0].hide_from_recipient),
-        result.rows[0].recipient_user_id ? Number(result.rows[0].recipient_user_id) : null,
+        parsed.data.title,
+        slug,
+        parsed.data.isPublic !== false,
+        minContribution,
+        dueAt,
+        recipientData.recipientMode,
+        recipientData.recipientUserId,
+        recipientData.recipientName,
+        recipientData.hideFromRecipient,
       ],
     );
 
-    for (const friend of visibleFriends.rows) {
-      await safeNotify(() =>
-        createNotificationLocalized({
-          userId: Number(friend.friend_user_id),
-          preferenceColumn: "wishlist_shared_enabled",
-          type: "wishlist.shared",
-          link: `/wishlist/${result.rows[0].slug}`,
-          data: { wishlistId, slug: result.rows[0].slug },
-          texts: {
-            ru: {
-              title: "Новый вишлист от друга",
-              body: `С тобой поделились списком: "${result.rows[0].title}"`,
-            },
-            en: {
-              title: "New shared wishlist",
-              body: `A friend shared wishlist: "${result.rows[0].title}"`,
-            },
-          },
-        }),
+    const wishlistId = result.rows[0].id;
+    const hiddenUserIds = new Set((parsed.data.hiddenUserIds || []).map((id) => Number(id)));
+    hiddenUserIds.delete(req.user.userId);
+    if (recipientData.recipientUserId && recipientData.hideFromRecipient) {
+      hiddenUserIds.add(Number(recipientData.recipientUserId));
+    }
+
+    if (hiddenUserIds.size > 0) {
+      await pool.query(
+        `INSERT INTO wishlist_hidden_users (wishlist_id, user_id)
+         SELECT $1, UNNEST($2::int[])
+         ON CONFLICT (wishlist_id, user_id) DO NOTHING`,
+        [wishlistId, Array.from(hiddenUserIds)],
       );
     }
-  }
 
-  res.status(201).json(result.rows[0]);
+    if (result.rows[0].slug && parsed.data.isPublic !== false) {
+      const visibleFriends = await pool.query(
+        `SELECT f.friend_user_id
+         FROM friendships f
+         LEFT JOIN wishlist_hidden_users whu
+           ON whu.wishlist_id = $2 AND whu.user_id = f.friend_user_id
+         WHERE f.user_id = $1
+           AND whu.id IS NULL
+           AND NOT ($3 = true AND $4 IS NOT NULL AND f.friend_user_id = $4)`,
+        [
+          req.user.userId,
+          wishlistId,
+          Boolean(result.rows[0].hide_from_recipient),
+          result.rows[0].recipient_user_id ? Number(result.rows[0].recipient_user_id) : null,
+        ],
+      );
+
+      for (const friend of visibleFriends.rows) {
+        await safeNotify(() =>
+          createNotificationLocalized({
+            userId: Number(friend.friend_user_id),
+            preferenceColumn: "wishlist_shared_enabled",
+            type: "wishlist.shared",
+            link: `/wishlist/${result.rows[0].slug}`,
+            data: { wishlistId, slug: result.rows[0].slug },
+            texts: {
+              ru: {
+                title: "Новый вишлист от друга",
+                body: `С тобой поделились списком: "${result.rows[0].title}"`,
+              },
+              en: {
+                title: "New shared wishlist",
+                body: `A friend shared wishlist: "${result.rows[0].title}"`,
+              },
+            },
+          }),
+        );
+      }
+    }
+
+    return res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error("Create wishlist failed:", error);
+    return res.status(500).json({ message: "Failed to create wishlist" });
+  }
 });
 
 wishlistRouter.post("/wishlists/:slug/items", requireAuth, async (req, res) => {
