@@ -230,15 +230,6 @@ export default function GlobalControls() {
 
       {mobileOpen ? (
         <div className="global-settings-panel card">
-          <div className="settings-tabs">
-            <button type="button" className={activeTab === "general" ? "active" : ""} onClick={() => setActiveTab("general")}>
-              {t("settingsTab")}
-            </button>
-            <button type="button" className={activeTab === "notifications" ? "active" : ""} onClick={() => setActiveTab("notifications")}>
-              {t("notificationsTab")} {unreadCount > 0 ? `(${Math.min(unreadCount, 99)})` : ""}
-            </button>
-          </div>
-
           {activeTab === "general" ? (
             <>
               <div className="global-settings-row">
@@ -264,6 +255,7 @@ export default function GlobalControls() {
             </>
           ) : (
             <>
+              <h4 style={{ margin: 0 }}>{t("notificationsTab")} {unreadCount > 0 ? `(${Math.min(unreadCount, 99)})` : ""}</h4>
               {isAuthed && prefs ? (
                 <div className="notify-prefs">
                   <label><input type="checkbox" checked={prefs.inAppEnabled} onChange={(e) => togglePref({ inAppEnabled: e.target.checked })} /> {t("notificationsInApp")}</label>
