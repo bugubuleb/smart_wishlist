@@ -263,6 +263,16 @@ button {
   color: var(--muted);
 }
 
+.notify-mark-read {
+  min-height: 40px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(124, 157, 255, 0.45);
+  background: linear-gradient(135deg, rgba(124, 157, 255, 0.2), rgba(124, 157, 255, 0.32));
+  color: var(--text);
+  font-weight: 700;
+}
+
 .notify-toast {
   position: fixed;
   left: 14px;
@@ -548,6 +558,10 @@ button:active {
   .wishlist-toolbar > * {
     width: 100%;
     text-align: center;
+  }
+
+  .notifications-page {
+    width: min(96vw, 680px) !important;
   }
 
   .wishlist-items-grid {

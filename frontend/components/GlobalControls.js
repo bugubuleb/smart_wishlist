@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import CurrencySwitcher from "@/components/CurrencySwitcher";
 import GlobalLogoutButton from "@/components/GlobalLogoutButton";
@@ -50,6 +50,7 @@ function toUint8Array(base64String) {
 }
 
 export default function GlobalControls() {
+  const router = useRouter();
   const pathname = usePathname();
   const [isAuthed, setIsAuthed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -184,8 +185,12 @@ export default function GlobalControls() {
             type="button"
             className="global-notify-btn"
             onClick={() => {
-              setMobileOpen((prev) => !prev);
-              setActiveTab("notifications");
+              if (window.matchMedia("(max-width: 960px)").matches) {
+                router.push("/notifications");
+              } else {
+                setMobileOpen((prev) => !prev);
+                setActiveTab("notifications");
+              }
             }}
             aria-label="Notifications"
             title="Notifications"
@@ -269,6 +274,7 @@ export default function GlobalControls() {
                 <>
                   <button
                     type="button"
+                    className="notify-mark-read"
                     onClick={async () => {
                       const token = getToken();
                       if (!token) return;

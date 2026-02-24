@@ -374,6 +374,38 @@ wishlistRouter.post("/wishlists/:slug/items", requireAuth, async (req, res) => {
     ],
   );
 
+  const visibleFriends = await pool.query(
+    `SELECT f.friend_user_id
+     FROM friendships f
+     LEFT JOIN wishlist_hidden_users whu
+       ON whu.wishlist_id = $2 AND whu.user_id = f.friend_user_id
+     JOIN wishlists w ON w.id = $2
+     WHERE f.user_id = $1
+       AND whu.id IS NULL
+       AND NOT (w.hide_from_recipient = true AND w.recipient_user_id = f.friend_user_id)`,
+    [req.user.userId, ownerCheck.rows[0].id],
+  );
+
+  for (const friend of visibleFriends.rows) {
+    await createNotificationLocalized({
+      userId: Number(friend.friend_user_id),
+      preferenceColumn: "wishlist_shared_enabled",
+      type: "wishlist.item.added",
+      link: `/wishlist/${req.params.slug}`,
+      data: { itemId: created.rows[0].id, slug: req.params.slug },
+      texts: {
+        ru: {
+          title: "В вишлисте появился новый товар",
+          body: `Добавлен подарок: "${created.rows[0].title}"`,
+        },
+        en: {
+          title: "New item in wishlist",
+          body: `New gift added: "${created.rows[0].title}"`,
+        },
+      },
+    });
+  }
+
   broadcast(req.params.slug, { type: "item.created", itemId: created.rows[0].id });
 
   res.status(201).json(created.rows[0]);

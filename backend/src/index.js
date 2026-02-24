@@ -15,7 +15,17 @@ import { attachRealtimeServer } from "./realtime/server.js";
 
 const app = express();
 
-app.use(cors({ origin: env.corsOrigin }));
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+      const normalized = String(origin).replace(/\/+$/, "");
+      if (env.corsOrigins.includes(normalized)) return callback(null, true);
+      if (/^https:\/\/[a-z0-9-]+\.up\.railway\.app$/i.test(normalized)) return callback(null, true);
+      return callback(null, false);
+    },
+  }),
+);
 app.use(express.json());
 
 app.use("/api", healthRouter);
