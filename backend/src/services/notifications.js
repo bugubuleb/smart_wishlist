@@ -134,3 +134,32 @@ export async function createNotificationIfEnabled({
     sendPush: pushAllowed,
   });
 }
+
+export async function createNotificationLocalized({
+  userId,
+  preferenceColumn,
+  type,
+  texts,
+  link = "/",
+  data = {},
+}) {
+  const languageResult = await pool.query(
+    `SELECT preferred_language
+     FROM users
+     WHERE id = $1`,
+    [userId],
+  );
+  const lang = languageResult.rows[0]?.preferred_language === "ru" ? "ru" : "en";
+  const localized = texts?.[lang] || texts?.en || texts?.ru;
+  if (!localized?.title || !localized?.body) return null;
+
+  return createNotificationIfEnabled({
+    userId,
+    preferenceColumn,
+    type,
+    title: localized.title,
+    body: localized.body,
+    link,
+    data,
+  });
+}

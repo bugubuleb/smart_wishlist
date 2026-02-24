@@ -22,12 +22,10 @@ import { getToken } from "@/lib/session";
 function SettingsIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="theme-icon" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path
-        d="M12 8.5A3.5 3.5 0 1 1 8.5 12 3.5 3.5 0 0 1 12 8.5Zm7.5 3.5a7.4 7.4 0 0 0-.07-1l2.05-1.6-2-3.46-2.5 1a7.9 7.9 0 0 0-1.73-1l-.38-2.67h-4l-.38 2.67a7.9 7.9 0 0 0-1.73 1l-2.5-1-2 3.46L4.57 11a8.6 8.6 0 0 0 0 2l-2.05 1.6 2 3.46 2.5-1a7.9 7.9 0 0 0 1.73 1l.38 2.67h4l.38-2.67a7.9 7.9 0 0 0 1.73-1l2.5 1 2-3.46-2.05-1.6c.05-.33.08-.66.07-1Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
+      <path d="M4 7H20M4 12H20M4 17H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="8" cy="7" r="2" fill="currentColor" />
+      <circle cx="15" cy="12" r="2" fill="currentColor" />
+      <circle cx="11" cy="17" r="2" fill="currentColor" />
     </svg>
   );
 }
@@ -161,6 +159,14 @@ export default function GlobalControls() {
     }
 
     await subscribePush(subscription.toJSON(), token);
+  }
+
+  if (isAuthPage) {
+    return (
+      <div className="global-actions auth-language-only">
+        <LanguageSwitcher />
+      </div>
+    );
   }
 
   return (

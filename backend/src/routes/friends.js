@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { pool } from "../db/pool.js";
 import { requireAuth } from "../middleware/auth.js";
-import { createNotificationIfEnabled } from "../services/notifications.js";
+import { createNotificationLocalized } from "../services/notifications.js";
 
 const usernameSchema = z.object({
   username: z.string().trim().min(3).max(60).regex(/^[a-zA-Z0-9_]+$/),
@@ -204,14 +204,22 @@ friendRouter.post("/friends/request", requireAuth, async (req, res) => {
     [req.user.userId, targetUser.id, senderVisibleWishlistIds],
   );
 
-  await createNotificationIfEnabled({
+  await createNotificationLocalized({
     userId: targetUser.id,
     preferenceColumn: "friend_requests_enabled",
     type: "friend.request.received",
-    title: "Новый запрос в друзья",
-    body: `@${req.user.username || "user"} отправил тебе запрос в друзья`,
     link: "/",
     data: { fromUserId: req.user.userId },
+    texts: {
+      ru: {
+        title: "Новый запрос в друзья",
+        body: `@${req.user.username || "user"} отправил тебе запрос в друзья`,
+      },
+      en: {
+        title: "New friend request",
+        body: `@${req.user.username || "user"} sent you a friend request`,
+      },
+    },
   });
 
   res.status(201).json({
@@ -279,14 +287,22 @@ friendRouter.post("/friends/requests/:requestId/accept", requireAuth, async (req
     client.release();
   }
 
-  await createNotificationIfEnabled({
+  await createNotificationLocalized({
     userId: friendRequest.from_user_id,
     preferenceColumn: "friend_requests_enabled",
     type: "friend.request.accepted",
-    title: "Запрос в друзья принят",
-    body: "Твой запрос в друзья принят.",
     link: "/",
     data: { friendUserId: friendRequest.to_user_id },
+    texts: {
+      ru: {
+        title: "Запрос в друзья принят",
+        body: "Твой запрос в друзья принят.",
+      },
+      en: {
+        title: "Friend request accepted",
+        body: "Your friend request has been accepted.",
+      },
+    },
   });
 
   res.json({ ok: true });

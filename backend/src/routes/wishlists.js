@@ -5,7 +5,7 @@ import { pool } from "../db/pool.js";
 import { requireAuth } from "../middleware/auth.js";
 import { optionalAuth } from "../middleware/optional-auth.js";
 import { broadcast } from "../realtime/hub.js";
-import { createNotificationIfEnabled } from "../services/notifications.js";
+import { createNotificationLocalized } from "../services/notifications.js";
 import { makeWishlistSlug } from "../services/slug.js";
 
 const DEFAULT_MIN_CONTRIBUTION = 100;
@@ -326,14 +326,22 @@ wishlistRouter.post("/wishlists", requireAuth, async (req, res) => {
     );
 
     for (const friend of visibleFriends.rows) {
-      await createNotificationIfEnabled({
+      await createNotificationLocalized({
         userId: Number(friend.friend_user_id),
         preferenceColumn: "wishlist_shared_enabled",
         type: "wishlist.shared",
-        title: "Новый вишлист от друга",
-        body: `С тобой поделились списком: "${result.rows[0].title}"`,
         link: `/wishlist/${result.rows[0].slug}`,
         data: { wishlistId, slug: result.rows[0].slug },
+        texts: {
+          ru: {
+            title: "Новый вишлист от друга",
+            body: `С тобой поделились списком: "${result.rows[0].title}"`,
+          },
+          en: {
+            title: "New shared wishlist",
+            body: `A friend shared wishlist: "${result.rows[0].title}"`,
+          },
+        },
       });
     }
   }
@@ -526,14 +534,22 @@ wishlistRouter.post("/items/:itemId/reserve", optionalAuth, async (req, res) => 
   broadcast(item.rows[0].slug, { type: "reservation.updated", itemId: Number(req.params.itemId) });
 
   if (Number(item.rows[0].owner_id) !== Number(req.user?.userId || 0)) {
-    await createNotificationIfEnabled({
+    await createNotificationLocalized({
       userId: Number(item.rows[0].owner_id),
       preferenceColumn: "reservation_enabled",
       type: "item.reserved",
-      title: "Подарок зарезервирован",
-      body: `Кто-то забронировал подарок "${item.rows[0].title}"`,
       link: `/wishlist/${item.rows[0].slug}`,
       data: { itemId: Number(req.params.itemId) },
+      texts: {
+        ru: {
+          title: "Подарок зарезервирован",
+          body: `Кто-то забронировал подарок "${item.rows[0].title}"`,
+        },
+        en: {
+          title: "Gift reserved",
+          body: `Someone reserved gift "${item.rows[0].title}"`,
+        },
+      },
     });
   }
 
@@ -946,24 +962,40 @@ wishlistRouter.post("/items/:itemId/contribute", optionalAuth, async (req, res) 
       );
       if (itemInfo.rowCount) {
         const row = itemInfo.rows[0];
-        await createNotificationIfEnabled({
+        await createNotificationLocalized({
           userId: Number(row.owner_id),
           preferenceColumn: "funded_enabled",
           type: "item.funded.owner",
-          title: "Подарок полностью профинансирован",
-          body: `Подарок "${row.title}" полностью профинансирован.`,
           link: `/wishlist/${row.slug}`,
           data: { itemId: allocation.itemId },
+          texts: {
+            ru: {
+              title: "Подарок полностью профинансирован",
+              body: `Подарок "${row.title}" полностью профинансирован.`,
+            },
+            en: {
+              title: "Gift fully funded",
+              body: `Gift "${row.title}" is fully funded.`,
+            },
+          },
         });
         if (row.responsible_user_id) {
-          await createNotificationIfEnabled({
+          await createNotificationLocalized({
             userId: Number(row.responsible_user_id),
             preferenceColumn: "funded_enabled",
             type: "item.funded.responsible",
-            title: "Сумма собрана, пора купить подарок",
-            body: `Подарок "${row.title}" собран. Можно покупать.`,
             link: `/wishlist/${row.slug}`,
             data: { itemId: allocation.itemId },
+            texts: {
+              ru: {
+                title: "Сумма собрана, пора купить подарок",
+                body: `Подарок "${row.title}" собран. Можно покупать.`,
+              },
+              en: {
+                title: "Funding complete, time to buy",
+                body: `Gift "${row.title}" is fully funded. Time to buy.`,
+              },
+            },
           });
         }
       }
