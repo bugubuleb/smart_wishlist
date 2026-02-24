@@ -117,6 +117,16 @@ export default function GlobalControls() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
+  useEffect(() => {
+    function onNotificationsReadAll() {
+      setUnreadCount(0);
+      setNotifications((prev) => prev.map((item) => ({ ...item, is_read: true })));
+    }
+
+    window.addEventListener("notifications:read-all", onNotificationsReadAll);
+    return () => window.removeEventListener("notifications:read-all", onNotificationsReadAll);
+  }, []);
+
   const isAuthPage = pathname === "/login" || pathname === "/register";
   const showCurrency = isAuthed && !isAuthPage;
 
@@ -205,6 +215,20 @@ export default function GlobalControls() {
 
         <button
           type="button"
+          className="global-notify-trigger"
+          aria-label="Notifications"
+          title="Notifications"
+          onClick={() => {
+            window.dispatchEvent(new Event("notifications:read-all"));
+            router.push("/notifications");
+          }}
+        >
+          <BellIcon />
+          {unreadCount > 0 ? <span className="notify-badge">{Math.min(unreadCount, 99)}</span> : null}
+        </button>
+
+        <button
+          type="button"
           className="global-settings-trigger"
           aria-label="Settings"
           title="Settings"
@@ -218,7 +242,6 @@ export default function GlobalControls() {
           }}
         >
           <SettingsIcon />
-          {unreadCount > 0 ? <span className="notify-badge">{Math.min(unreadCount, 99)}</span> : null}
         </button>
       </div>
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = "smart-wishlist-shell-v1";
+const CACHE_NAME = "smart-wishlist-shell-v2";
 const SHELL_ASSETS = [
   "/",
   "/login",
@@ -66,13 +66,23 @@ self.addEventListener("push", (event) => {
   }
 
   event.waitUntil(
-    self.registration.showNotification(payload.title || "Smart Wishlist", {
-      body: payload.body || "",
-      icon: "/icons/icon-192.png",
-      badge: "/icons/icon-192.png",
-      data: {
-        link: payload.link || "/",
-      },
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      const appIsVisible = clients.some((client) => client.visibilityState === "visible");
+      if (appIsVisible) {
+        clients.forEach((client) => {
+          client.postMessage({ type: "push.received", payload });
+        });
+        return;
+      }
+
+      return self.registration.showNotification(payload.title || "Smart Wishlist", {
+        body: payload.body || "",
+        icon: "/icons/icon-192.png",
+        badge: "/icons/icon-192.png",
+        data: {
+          link: payload.link || "/",
+        },
+      });
     }),
   );
 });

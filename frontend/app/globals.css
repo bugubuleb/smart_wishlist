@@ -152,6 +152,19 @@ button {
   color: var(--text);
 }
 
+.global-notify-trigger {
+  display: none;
+  position: relative;
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--toggle-bg);
+  color: var(--text);
+}
+
 .auth-language-only .lang-btn {
   min-width: 72px;
 }
@@ -483,6 +496,10 @@ button:active {
     display: grid;
   }
 
+  .global-notify-trigger {
+    display: grid;
+  }
+
   .global-settings-panel {
     right: 10px;
     width: min(90vw, 320px);
@@ -537,6 +554,7 @@ button:active {
   }
 
   .global-settings-trigger,
+  .global-notify-trigger,
   .global-notify-btn {
     width: 48px;
     height: 48px;

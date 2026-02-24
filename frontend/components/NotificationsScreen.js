@@ -34,15 +34,27 @@ export default function NotificationsScreen() {
 
     getNotifications(token).then((data) => {
       setNotifications(data.notifications || []);
-      setUnreadCount(Number(data.unreadCount || 0));
+      const unread = Number(data.unreadCount || 0);
+      setUnreadCount(unread);
+      if (unread > 0) {
+        markAllNotificationsRead(token).then(() => {
+          setUnreadCount(0);
+          setNotifications((prev) => prev.map((item) => ({ ...item, is_read: true })));
+          window.dispatchEvent(new Event("notifications:read-all"));
+        }).catch(() => {});
+      } else {
+        window.dispatchEvent(new Event("notifications:read-all"));
+      }
     }).catch(() => {});
 
     getNotificationPreferences(token).then(setPrefs).catch(() => {});
 
     const socket = connectNotificationSocket(token, (event) => {
       if (event.type === "notification.created" && event.notification) {
-        setNotifications((prev) => [event.notification, ...prev].slice(0, 50));
-        setUnreadCount((prev) => prev + 1);
+        setNotifications((prev) => [{ ...event.notification, is_read: true }, ...prev].slice(0, 50));
+        setUnreadCount(0);
+        markAllNotificationsRead(token).catch(() => {});
+        window.dispatchEvent(new Event("notifications:read-all"));
       }
     });
     return () => socket.close();
@@ -110,6 +122,7 @@ export default function NotificationsScreen() {
               await markAllNotificationsRead(token);
               setUnreadCount(0);
               setNotifications((prev) => prev.map((item) => ({ ...item, is_read: true })));
+              window.dispatchEvent(new Event("notifications:read-all"));
             }}
           >
             {t("markAllRead")}
