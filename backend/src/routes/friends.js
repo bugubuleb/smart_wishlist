@@ -66,6 +66,14 @@ async function applyFriendVisibility(ownerId, friendUserId, visibleWishlistIds, 
 
 export const friendRouter = Router();
 
+async function safeNotify(task) {
+  try {
+    await task();
+  } catch (error) {
+    console.error("Friend notification failed:", error?.message || error);
+  }
+}
+
 friendRouter.get("/friends", requireAuth, async (req, res) => {
   const [friendsResult, incomingResult, outgoingResult] = await Promise.all([
     pool.query(
@@ -204,23 +212,25 @@ friendRouter.post("/friends/request", requireAuth, async (req, res) => {
     [req.user.userId, targetUser.id, senderVisibleWishlistIds],
   );
 
-  await createNotificationLocalized({
-    userId: targetUser.id,
-    preferenceColumn: "friend_requests_enabled",
-    type: "friend.request.received",
-    link: "/",
-    data: { fromUserId: req.user.userId },
-    texts: {
-      ru: {
-        title: "Новый запрос в друзья",
-        body: `@${req.user.username || "user"} отправил тебе запрос в друзья`,
+  await safeNotify(() =>
+    createNotificationLocalized({
+      userId: targetUser.id,
+      preferenceColumn: "friend_requests_enabled",
+      type: "friend.request.received",
+      link: "/",
+      data: { fromUserId: req.user.userId },
+      texts: {
+        ru: {
+          title: "Новый запрос в друзья",
+          body: `@${req.user.username || "user"} отправил тебе запрос в друзья`,
+        },
+        en: {
+          title: "New friend request",
+          body: `@${req.user.username || "user"} sent you a friend request`,
+        },
       },
-      en: {
-        title: "New friend request",
-        body: `@${req.user.username || "user"} sent you a friend request`,
-      },
-    },
-  });
+    }),
+  );
 
   res.status(201).json({
     request: {
@@ -287,23 +297,25 @@ friendRouter.post("/friends/requests/:requestId/accept", requireAuth, async (req
     client.release();
   }
 
-  await createNotificationLocalized({
-    userId: friendRequest.from_user_id,
-    preferenceColumn: "friend_requests_enabled",
-    type: "friend.request.accepted",
-    link: "/",
-    data: { friendUserId: friendRequest.to_user_id },
-    texts: {
-      ru: {
-        title: "Запрос в друзья принят",
-        body: "Твой запрос в друзья принят.",
+  await safeNotify(() =>
+    createNotificationLocalized({
+      userId: friendRequest.from_user_id,
+      preferenceColumn: "friend_requests_enabled",
+      type: "friend.request.accepted",
+      link: "/",
+      data: { friendUserId: friendRequest.to_user_id },
+      texts: {
+        ru: {
+          title: "Запрос в друзья принят",
+          body: "Твой запрос в друзья принят.",
+        },
+        en: {
+          title: "Friend request accepted",
+          body: "Your friend request has been accepted.",
+        },
       },
-      en: {
-        title: "Friend request accepted",
-        body: "Your friend request has been accepted.",
-      },
-    },
-  });
+    }),
+  );
 
   res.json({ ok: true });
 });

@@ -135,6 +135,14 @@ async function resolveRecipientData(payload) {
 
 export const wishlistRouter = Router();
 
+async function safeNotify(task) {
+  try {
+    await task();
+  } catch (error) {
+    console.error("Notification dispatch failed:", error?.message || error);
+  }
+}
+
 wishlistRouter.get("/wishlists/mine", requireAuth, async (req, res) => {
   const result = await pool.query(
     `SELECT w.id, w.title, w.slug, w.is_public, w.min_contribution, w.due_at, w.recipient_mode, w.recipient_user_id, w.recipient_name, w.hide_from_recipient, w.created_at,
@@ -326,23 +334,25 @@ wishlistRouter.post("/wishlists", requireAuth, async (req, res) => {
     );
 
     for (const friend of visibleFriends.rows) {
-      await createNotificationLocalized({
-        userId: Number(friend.friend_user_id),
-        preferenceColumn: "wishlist_shared_enabled",
-        type: "wishlist.shared",
-        link: `/wishlist/${result.rows[0].slug}`,
-        data: { wishlistId, slug: result.rows[0].slug },
-        texts: {
-          ru: {
-            title: "Новый вишлист от друга",
-            body: `С тобой поделились списком: "${result.rows[0].title}"`,
+      await safeNotify(() =>
+        createNotificationLocalized({
+          userId: Number(friend.friend_user_id),
+          preferenceColumn: "wishlist_shared_enabled",
+          type: "wishlist.shared",
+          link: `/wishlist/${result.rows[0].slug}`,
+          data: { wishlistId, slug: result.rows[0].slug },
+          texts: {
+            ru: {
+              title: "Новый вишлист от друга",
+              body: `С тобой поделились списком: "${result.rows[0].title}"`,
+            },
+            en: {
+              title: "New shared wishlist",
+              body: `A friend shared wishlist: "${result.rows[0].title}"`,
+            },
           },
-          en: {
-            title: "New shared wishlist",
-            body: `A friend shared wishlist: "${result.rows[0].title}"`,
-          },
-        },
-      });
+        }),
+      );
     }
   }
 
@@ -387,23 +397,25 @@ wishlistRouter.post("/wishlists/:slug/items", requireAuth, async (req, res) => {
   );
 
   for (const friend of visibleFriends.rows) {
-    await createNotificationLocalized({
-      userId: Number(friend.friend_user_id),
-      preferenceColumn: "wishlist_shared_enabled",
-      type: "wishlist.item.added",
-      link: `/wishlist/${req.params.slug}`,
-      data: { itemId: created.rows[0].id, slug: req.params.slug },
-      texts: {
-        ru: {
-          title: "В вишлисте появился новый товар",
-          body: `Добавлен подарок: "${created.rows[0].title}"`,
+    await safeNotify(() =>
+      createNotificationLocalized({
+        userId: Number(friend.friend_user_id),
+        preferenceColumn: "wishlist_shared_enabled",
+        type: "wishlist.item.added",
+        link: `/wishlist/${req.params.slug}`,
+        data: { itemId: created.rows[0].id, slug: req.params.slug },
+        texts: {
+          ru: {
+            title: "В вишлисте появился новый товар",
+            body: `Добавлен подарок: "${created.rows[0].title}"`,
+          },
+          en: {
+            title: "New item in wishlist",
+            body: `New gift added: "${created.rows[0].title}"`,
+          },
         },
-        en: {
-          title: "New item in wishlist",
-          body: `New gift added: "${created.rows[0].title}"`,
-        },
-      },
-    });
+      }),
+    );
   }
 
   broadcast(req.params.slug, { type: "item.created", itemId: created.rows[0].id });
@@ -566,23 +578,25 @@ wishlistRouter.post("/items/:itemId/reserve", optionalAuth, async (req, res) => 
   broadcast(item.rows[0].slug, { type: "reservation.updated", itemId: Number(req.params.itemId) });
 
   if (Number(item.rows[0].owner_id) !== Number(req.user?.userId || 0)) {
-    await createNotificationLocalized({
-      userId: Number(item.rows[0].owner_id),
-      preferenceColumn: "reservation_enabled",
-      type: "item.reserved",
-      link: `/wishlist/${item.rows[0].slug}`,
-      data: { itemId: Number(req.params.itemId) },
-      texts: {
-        ru: {
-          title: "Подарок зарезервирован",
-          body: `Кто-то забронировал подарок "${item.rows[0].title}"`,
+    await safeNotify(() =>
+      createNotificationLocalized({
+        userId: Number(item.rows[0].owner_id),
+        preferenceColumn: "reservation_enabled",
+        type: "item.reserved",
+        link: `/wishlist/${item.rows[0].slug}`,
+        data: { itemId: Number(req.params.itemId) },
+        texts: {
+          ru: {
+            title: "Подарок зарезервирован",
+            body: `Кто-то забронировал подарок "${item.rows[0].title}"`,
+          },
+          en: {
+            title: "Gift reserved",
+            body: `Someone reserved gift "${item.rows[0].title}"`,
+          },
         },
-        en: {
-          title: "Gift reserved",
-          body: `Someone reserved gift "${item.rows[0].title}"`,
-        },
-      },
-    });
+      }),
+    );
   }
 
   return res.status(201).json({ ok: true, mode: "reserved" });
@@ -994,41 +1008,45 @@ wishlistRouter.post("/items/:itemId/contribute", optionalAuth, async (req, res) 
       );
       if (itemInfo.rowCount) {
         const row = itemInfo.rows[0];
-        await createNotificationLocalized({
-          userId: Number(row.owner_id),
-          preferenceColumn: "funded_enabled",
-          type: "item.funded.owner",
-          link: `/wishlist/${row.slug}`,
-          data: { itemId: allocation.itemId },
-          texts: {
-            ru: {
-              title: "Подарок полностью профинансирован",
-              body: `Подарок "${row.title}" полностью профинансирован.`,
-            },
-            en: {
-              title: "Gift fully funded",
-              body: `Gift "${row.title}" is fully funded.`,
-            },
-          },
-        });
-        if (row.responsible_user_id) {
-          await createNotificationLocalized({
-            userId: Number(row.responsible_user_id),
+        await safeNotify(() =>
+          createNotificationLocalized({
+            userId: Number(row.owner_id),
             preferenceColumn: "funded_enabled",
-            type: "item.funded.responsible",
+            type: "item.funded.owner",
             link: `/wishlist/${row.slug}`,
             data: { itemId: allocation.itemId },
             texts: {
               ru: {
-                title: "Сумма собрана, пора купить подарок",
-                body: `Подарок "${row.title}" собран. Можно покупать.`,
+                title: "Подарок полностью профинансирован",
+                body: `Подарок "${row.title}" полностью профинансирован.`,
               },
               en: {
-                title: "Funding complete, time to buy",
-                body: `Gift "${row.title}" is fully funded. Time to buy.`,
+                title: "Gift fully funded",
+                body: `Gift "${row.title}" is fully funded.`,
               },
             },
-          });
+          }),
+        );
+        if (row.responsible_user_id) {
+          await safeNotify(() =>
+            createNotificationLocalized({
+              userId: Number(row.responsible_user_id),
+              preferenceColumn: "funded_enabled",
+              type: "item.funded.responsible",
+              link: `/wishlist/${row.slug}`,
+              data: { itemId: allocation.itemId },
+              texts: {
+                ru: {
+                  title: "Сумма собрана, пора купить подарок",
+                  body: `Подарок "${row.title}" собран. Можно покупать.`,
+                },
+                en: {
+                  title: "Funding complete, time to buy",
+                  body: `Gift "${row.title}" is fully funded. Time to buy.`,
+                },
+              },
+            }),
+          );
         }
       }
     }
