@@ -1,13 +1,10 @@
 import "./globals.css";
 
-import CurrencySwitcher from "@/components/CurrencySwitcher";
 import { CurrencyProvider } from "@/components/CurrencyProvider";
-import GlobalLogoutButton from "@/components/GlobalLogoutButton";
+import GlobalControls from "@/components/GlobalControls";
 import { LanguageProvider } from "@/components/LanguageProvider";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 import PwaRegister from "@/components/PwaRegister";
 import StarsField from "@/components/StarsField";
-import ThemeToggle from "@/components/ThemeToggle";
 
 export const metadata = {
   title: "Smart Wishlist",
@@ -46,14 +43,7 @@ export default function RootLayout({ children }) {
           <CurrencyProvider>
             <StarsField />
             <div className="root-ui">
-              <div className="global-actions">
-                <LanguageSwitcher />
-                <CurrencySwitcher />
-                <GlobalLogoutButton />
-                <div className="theme-toggle-wrap">
-                  <ThemeToggle />
-                </div>
-              </div>
+              <GlobalControls />
               <div className="app-shell">{children}</div>
             </div>
           </CurrencyProvider>

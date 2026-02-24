@@ -218,3 +218,53 @@ export function autofillByUrl(url, targetCurrency) {
     body: JSON.stringify({ url, targetCurrency }),
   });
 }
+
+export function getNotifications(token) {
+  return request("/notifications", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function markAllNotificationsRead(token) {
+  return request("/notifications/read-all", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({}),
+  });
+}
+
+export function getNotificationPreferences(token) {
+  return request("/notifications/preferences", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function setNotificationPreferences(payload, token) {
+  return request("/notifications/preferences", {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getVapidPublicKey(token) {
+  return request("/notifications/vapid-public-key", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function subscribePush(payload, token) {
+  return request("/notifications/subscribe", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function unsubscribePush(endpoint, token) {
+  return request("/notifications/unsubscribe", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ endpoint }),
+  });
+}

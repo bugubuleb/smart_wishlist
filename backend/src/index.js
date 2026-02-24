@@ -9,6 +9,7 @@ import { authRouter } from "./routes/auth.js";
 import { friendRouter } from "./routes/friends.js";
 import { healthRouter } from "./routes/health.js";
 import { productRouter } from "./routes/products.js";
+import { notificationRouter } from "./routes/notifications.js";
 import { wishlistRouter } from "./routes/wishlists.js";
 import { attachRealtimeServer } from "./realtime/server.js";
 
@@ -22,6 +23,7 @@ app.use("/api", authRouter);
 app.use("/api", friendRouter);
 app.use("/api", wishlistRouter);
 app.use("/api", productRouter);
+app.use("/api", notificationRouter);
 
 app.use((err, _req, res, _next) => {
   // Failsafe error handler so API keeps predictable JSON response shape.

@@ -129,12 +129,143 @@ button {
 
 .global-actions {
   position: fixed;
-  top: 14px;
+  top: calc(env(safe-area-inset-top, 0px) + 14px);
   right: 14px;
   z-index: 100;
+}
+
+.global-actions-desktop {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.global-settings-trigger {
+  display: none;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--toggle-bg);
+  color: var(--text);
+}
+
+.global-notify-btn {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--toggle-bg);
+  color: var(--text);
+}
+
+.notify-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+
+.currency-dock {
+  position: fixed;
+  right: 14px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+  z-index: 100;
+}
+
+.currency-dock select {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.global-settings-panel {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 62px);
+  right: 14px;
+  width: min(90vw, 340px);
+  padding: 12px;
+  border-radius: 14px;
+  z-index: 110;
+  display: grid;
+  gap: 10px;
+}
+
+.settings-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.settings-tabs button {
+  min-height: 38px;
+  border-radius: 10px;
+  background: var(--field-bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+
+.settings-tabs button.active {
+  background: var(--accent);
+  color: white;
+}
+
+.notify-prefs {
+  display: grid;
+  gap: 8px;
+}
+
+.notify-prefs label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.notify-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+  max-height: min(40vh, 320px);
+  overflow: auto;
+}
+
+.notify-list li {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px;
+  background: var(--field-bg);
+  display: grid;
+  gap: 4px;
+}
+
+.notify-list li small {
+  color: var(--muted);
+}
+
+.notify-toast {
+  position: fixed;
+  left: 14px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+  z-index: 120;
+  width: min(92vw, 360px);
+  padding: 10px 12px;
+  display: grid;
+  gap: 4px;
 }
 
 .app-shell {
@@ -262,23 +393,45 @@ button:active {
   }
 
   .global-actions {
-    top: 10px;
+    top: calc(env(safe-area-inset-top, 0px) + 10px);
     right: 10px;
     gap: 8px;
+  }
+
+  .global-actions-desktop,
+  .currency-dock {
+    display: none;
+  }
+
+  .global-settings-trigger {
+    display: grid;
+  }
+
+  .global-settings-panel {
+    right: 10px;
+    width: min(90vw, 320px);
+  }
+
+  .global-settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .global-settings-row > span {
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 700;
   }
 }
 
 @media (max-width: 768px) {
   .global-actions {
-    left: 50%;
-    right: auto;
-    top: 10px;
-    transform: translateX(-50%);
-    padding: 6px 8px;
-    border: 1px solid var(--shell-line);
-    border-radius: 999px;
-    background: var(--shell-bg);
-    backdrop-filter: blur(8px);
+    right: 10px;
+    left: auto;
+    transform: none;
+    top: calc(env(safe-area-inset-top, 0px) + 8px);
   }
 
   .app-shell {

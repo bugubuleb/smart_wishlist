@@ -12,3 +12,20 @@ export function connectWishlistSocket(slug, onMessage) {
 
   return socket;
 }
+
+export function connectNotificationSocket(token, onMessage) {
+  const wsBase = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000/ws";
+  const encodedToken = encodeURIComponent(token || "");
+  const url = `${wsBase}/notifications?token=${encodedToken}`;
+  const socket = new WebSocket(url);
+
+  socket.onmessage = (event) => {
+    try {
+      onMessage(JSON.parse(event.data));
+    } catch {
+      // Ignore malformed payloads.
+    }
+  };
+
+  return socket;
+}

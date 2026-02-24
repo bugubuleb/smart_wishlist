@@ -199,5 +199,51 @@ export async function bootstrapDatabase() {
     WHERE status = 'pending'
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS notifications (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type VARCHAR(60) NOT NULL,
+      title VARCHAR(180) NOT NULL,
+      body TEXT NOT NULL,
+      link_url VARCHAR(240) NOT NULL DEFAULT '/',
+      data_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+      is_read BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_notifications_user_unread
+    ON notifications(user_id, is_read, created_at DESC)
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS notification_preferences (
+      user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      in_app_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+      push_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+      wishlist_shared_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+      reservation_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+      funded_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+      friend_requests_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      endpoint TEXT NOT NULL,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      CONSTRAINT push_subscriptions_unique UNIQUE (user_id, endpoint)
+    )
+  `);
+
   await assignDefaultUsernames();
 }

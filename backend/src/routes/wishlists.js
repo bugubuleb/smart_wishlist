@@ -5,6 +5,7 @@ import { pool } from "../db/pool.js";
 import { requireAuth } from "../middleware/auth.js";
 import { optionalAuth } from "../middleware/optional-auth.js";
 import { broadcast } from "../realtime/hub.js";
+import { createNotificationIfEnabled } from "../services/notifications.js";
 import { makeWishlistSlug } from "../services/slug.js";
 
 const DEFAULT_MIN_CONTRIBUTION = 100;
@@ -307,6 +308,36 @@ wishlistRouter.post("/wishlists", requireAuth, async (req, res) => {
     );
   }
 
+  if (result.rows[0].slug && parsed.data.isPublic !== false) {
+    const visibleFriends = await pool.query(
+      `SELECT f.friend_user_id
+       FROM friendships f
+       LEFT JOIN wishlist_hidden_users whu
+         ON whu.wishlist_id = $2 AND whu.user_id = f.friend_user_id
+       WHERE f.user_id = $1
+         AND whu.id IS NULL
+         AND NOT ($3 = true AND $4 IS NOT NULL AND f.friend_user_id = $4)`,
+      [
+        req.user.userId,
+        wishlistId,
+        Boolean(result.rows[0].hide_from_recipient),
+        result.rows[0].recipient_user_id ? Number(result.rows[0].recipient_user_id) : null,
+      ],
+    );
+
+    for (const friend of visibleFriends.rows) {
+      await createNotificationIfEnabled({
+        userId: Number(friend.friend_user_id),
+        preferenceColumn: "wishlist_shared_enabled",
+        type: "wishlist.shared",
+        title: "Новый вишлист от друга",
+        body: `С тобой поделились списком: "${result.rows[0].title}"`,
+        link: `/wishlist/${result.rows[0].slug}`,
+        data: { wishlistId, slug: result.rows[0].slug },
+      });
+    }
+  }
+
   res.status(201).json(result.rows[0]);
 });
 
@@ -455,7 +486,7 @@ wishlistRouter.post("/items/:itemId/reserve", optionalAuth, async (req, res) => 
 
   const actorAlias = await resolveActorAlias(req, parsed.data.alias);
   const item = await pool.query(
-    `SELECT wi.id, wi.item_status, w.slug
+    `SELECT wi.id, wi.item_status, wi.title, w.slug, w.owner_id
      FROM wishlist_items wi
      JOIN wishlists w ON w.id = wi.wishlist_id
      WHERE wi.id = $1`,
@@ -493,6 +524,19 @@ wishlistRouter.post("/items/:itemId/reserve", optionalAuth, async (req, res) => 
   );
 
   broadcast(item.rows[0].slug, { type: "reservation.updated", itemId: Number(req.params.itemId) });
+
+  if (Number(item.rows[0].owner_id) !== Number(req.user?.userId || 0)) {
+    await createNotificationIfEnabled({
+      userId: Number(item.rows[0].owner_id),
+      preferenceColumn: "reservation_enabled",
+      type: "item.reserved",
+      title: "Подарок зарезервирован",
+      body: `Кто-то забронировал подарок "${item.rows[0].title}"`,
+      link: `/wishlist/${item.rows[0].slug}`,
+      data: { itemId: Number(req.params.itemId) },
+    });
+  }
+
   return res.status(201).json({ ok: true, mode: "reserved" });
 });
 
@@ -750,12 +794,17 @@ wishlistRouter.post("/items/:itemId/contribute", optionalAuth, async (req, res) 
   }
 
   const allocations = [];
+  const itemFundingSnapshots = new Map();
   let remainingAmount = incomingAmount;
 
   const currentNeed = targetPrice > 0 ? roundMoney(Math.max(0, targetPrice - collected)) : remainingAmount;
   const currentAccepted = roundMoney(Math.min(remainingAmount, currentNeed));
   if (currentAccepted > 0) {
     allocations.push({ itemId: Number(req.params.itemId), amount: currentAccepted, isPrimary: true });
+    itemFundingSnapshots.set(Number(req.params.itemId), {
+      target: targetPrice,
+      collectedBefore: collected,
+    });
     remainingAmount = roundMoney(remainingAmount - currentAccepted);
   }
 
@@ -790,6 +839,10 @@ wishlistRouter.post("/items/:itemId/contribute", optionalAuth, async (req, res) 
       if (transferred <= 0) continue;
 
       allocations.push({ itemId: Number(candidate.id), amount: transferred, isPrimary: false });
+      itemFundingSnapshots.set(Number(candidate.id), {
+        target: candidateTarget,
+        collectedBefore: candidateCollected,
+      });
       remainingAmount = roundMoney(remainingAmount - transferred);
     }
   }
@@ -877,6 +930,44 @@ wishlistRouter.post("/items/:itemId/contribute", optionalAuth, async (req, res) 
       [allocation.itemId, req.user?.userId || null, actorAlias, allocation.amount],
     );
     broadcast(item.rows[0].slug, { type: "contribution.updated", itemId: allocation.itemId });
+
+    const snapshot = itemFundingSnapshots.get(allocation.itemId);
+    if (!snapshot || snapshot.target <= 0) continue;
+    const wasFunded = snapshot.collectedBefore >= snapshot.target;
+    const nowFunded = roundMoney(snapshot.collectedBefore + allocation.amount) >= snapshot.target;
+    if (!wasFunded && nowFunded) {
+      const itemInfo = await pool.query(
+        `SELECT wi.title, w.slug, w.owner_id, ir.user_id AS responsible_user_id
+         FROM wishlist_items wi
+         JOIN wishlists w ON w.id = wi.wishlist_id
+         LEFT JOIN item_responsibles ir ON ir.item_id = wi.id
+         WHERE wi.id = $1`,
+        [allocation.itemId],
+      );
+      if (itemInfo.rowCount) {
+        const row = itemInfo.rows[0];
+        await createNotificationIfEnabled({
+          userId: Number(row.owner_id),
+          preferenceColumn: "funded_enabled",
+          type: "item.funded.owner",
+          title: "Подарок полностью профинансирован",
+          body: `Подарок "${row.title}" полностью профинансирован.`,
+          link: `/wishlist/${row.slug}`,
+          data: { itemId: allocation.itemId },
+        });
+        if (row.responsible_user_id) {
+          await createNotificationIfEnabled({
+            userId: Number(row.responsible_user_id),
+            preferenceColumn: "funded_enabled",
+            type: "item.funded.responsible",
+            title: "Сумма собрана, пора купить подарок",
+            body: `Подарок "${row.title}" собран. Можно покупать.`,
+            link: `/wishlist/${row.slug}`,
+            data: { itemId: allocation.itemId },
+          });
+        }
+      }
+    }
   }
 
   res.status(201).json({

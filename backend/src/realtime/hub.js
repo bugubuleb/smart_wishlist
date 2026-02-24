@@ -29,3 +29,8 @@ export function broadcast(roomId, payload) {
     }
   });
 }
+
+export function hasRoomClients(roomId) {
+  const room = rooms.get(roomId);
+  return Boolean(room && room.size > 0);
+}

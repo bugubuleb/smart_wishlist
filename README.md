@@ -221,6 +221,9 @@ npm run dev
 - `JWT_SECRET=...`
 - `JWT_EXPIRES_IN=7d`
 - `CORS_ORIGIN=http://localhost:3000`
+- `VAPID_PUBLIC_KEY=...`
+- `VAPID_PRIVATE_KEY=...`
+- `VAPID_SUBJECT=mailto:you@example.com`
 
 #### Frontend (`frontend/.env.local`)
 - `NEXT_PUBLIC_API_URL=http://localhost:8000/api`
@@ -452,6 +455,9 @@ npm run dev
 - `JWT_SECRET`
 - `JWT_EXPIRES_IN`
 - `CORS_ORIGIN`
+- `VAPID_PUBLIC_KEY`
+- `VAPID_PRIVATE_KEY`
+- `VAPID_SUBJECT`
 
 #### Frontend (`frontend/.env.local`)
 - `NEXT_PUBLIC_API_URL`
