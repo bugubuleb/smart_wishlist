@@ -60,6 +60,13 @@ export default function CreateWishlistForm({ token, onCreated }) {
       .catch(() => setFriends([]));
   }, [token]);
 
+  useEffect(() => {
+    if (!token || step !== 2) return;
+    getFriends(token)
+      .then((data) => setFriends(data.friends || []))
+      .catch(() => {});
+  }, [token, step]);
+
   async function handleSubmit(event) {
     event.preventDefault();
     if (!title.trim()) return;
@@ -86,7 +93,6 @@ export default function CreateWishlistForm({ token, onCreated }) {
       setFoundUser(null);
       setHideFromFoundUser(true);
       setHiddenUserIds([]);
-      setFriends([]);
       setRecipientMode("self");
       setStep(1);
       onCreated(wishlist);
