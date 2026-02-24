@@ -132,6 +132,9 @@ button {
   top: calc(env(safe-area-inset-top, 0px) + 14px);
   right: 14px;
   z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .global-actions-desktop {
@@ -284,6 +287,21 @@ button {
   background: linear-gradient(135deg, rgba(124, 157, 255, 0.2), rgba(124, 157, 255, 0.32));
   color: var(--text);
   font-weight: 700;
+}
+
+.notify-close-btn {
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--field-bg);
+  color: var(--text);
+  font-size: 24px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  padding: 0;
 }
 
 .settings-page-mobile {
@@ -529,6 +547,9 @@ button:active {
     left: auto;
     transform: none;
     top: calc(env(safe-area-inset-top, 0px) + 8px);
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   .app-shell {

@@ -13,6 +13,7 @@ import {
   getNotifications,
   getVapidPublicKey,
   markAllNotificationsRead,
+  markNotificationRead,
   setNotificationPreferences,
   subscribePush,
   unsubscribePush,
@@ -135,6 +136,12 @@ export default function GlobalControls() {
     [],
   );
 
+  useEffect(() => {
+    if (!isAuthed || !prefs?.pushEnabled || !pushSupported) return;
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    togglePushSubscription(true).catch(() => {});
+  }, [isAuthed, prefs?.pushEnabled, pushSupported]);
+
   async function togglePref(patch) {
     const token = getToken();
     if (!token || !prefs) return;
@@ -175,6 +182,17 @@ export default function GlobalControls() {
     }
 
     await subscribePush(subscription.toJSON(), token);
+  }
+
+  async function openNotification(item) {
+    const token = getToken();
+    if (!token || !item?.id) return;
+    await markNotificationRead(item.id, token).catch(() => {});
+    setNotifications((prev) => prev.filter((entry) => Number(entry.id) !== Number(item.id)));
+    setUnreadCount((prev) => Math.max(prev - 1, 0));
+    if (window.location.pathname !== item.link_url && item.link_url) {
+      router.push(item.link_url);
+    }
   }
 
   if (isAuthPage) {
@@ -306,10 +324,20 @@ export default function GlobalControls() {
                   >
                     {t("markAllRead")}
                   </button>
+                  <button type="button" className="notify-close-btn" onClick={() => setMobileOpen(false)}>×</button>
                   <ul className="notify-list">
-                    {notifications.map((item) => (
+                    {notifications.filter((item) => !item.is_read).map((item) => (
                       <li key={item.id}>
-                        <a href={item.link_url || "/"} style={{ fontWeight: item.is_read ? 500 : 700 }}>{item.title}</a>
+                        <a
+                          href={item.link_url || "/"}
+                          style={{ fontWeight: 700 }}
+                          onClick={async (event) => {
+                            event.preventDefault();
+                            await openNotification(item);
+                          }}
+                        >
+                          {item.title}
+                        </a>
                         <small>{item.body}</small>
                       </li>
                     ))}
@@ -322,7 +350,15 @@ export default function GlobalControls() {
       ) : null}
 
       {toast ? (
-        <a className="notify-toast card" href={toast.link_url || "/"}>
+        <a
+          className="notify-toast card"
+          href={toast.link_url || "/"}
+          onClick={async (event) => {
+            event.preventDefault();
+            await openNotification(toast);
+            setToast(null);
+          }}
+        >
           <strong>{toast.title}</strong>
           <span>{toast.body}</span>
         </a>

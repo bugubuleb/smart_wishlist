@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { useLanguage } from "@/components/LanguageProvider";
 import {
@@ -8,6 +9,7 @@ import {
   getNotifications,
   getVapidPublicKey,
   markAllNotificationsRead,
+  markNotificationRead,
   setNotificationPreferences,
   subscribePush,
   unsubscribePush,
@@ -23,6 +25,7 @@ function toUint8Array(base64String) {
 }
 
 export default function NotificationsScreen() {
+  const router = useRouter();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [prefs, setPrefs] = useState(null);
@@ -99,6 +102,15 @@ export default function NotificationsScreen() {
     await subscribePush(subscription.toJSON(), token);
   }
 
+  async function openNotification(item) {
+    if (!token || !item?.id) return;
+    await markNotificationRead(item.id, token).catch(() => {});
+    setNotifications((prev) => prev.filter((entry) => Number(entry.id) !== Number(item.id)));
+    setUnreadCount((prev) => Math.max(prev - 1, 0));
+    if (item.link_url) router.push(item.link_url);
+    window.dispatchEvent(new Event("notifications:read-all"));
+  }
+
   if (!token) {
     return (
       <main className="container">
@@ -115,18 +127,21 @@ export default function NotificationsScreen() {
       <section className="card notifications-page" style={{ padding: 16, width: "100%", display: "grid", gap: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
           <h2 style={{ margin: 0 }}>{t("notificationsTitle")} {unreadCount > 0 ? `(${Math.min(unreadCount, 99)})` : ""}</h2>
-          <button
-            type="button"
-            className="notify-mark-read"
-            onClick={async () => {
-              await markAllNotificationsRead(token);
-              setUnreadCount(0);
-              setNotifications((prev) => prev.map((item) => ({ ...item, is_read: true })));
-              window.dispatchEvent(new Event("notifications:read-all"));
-            }}
-          >
-            {t("markAllRead")}
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button
+              type="button"
+              className="notify-mark-read"
+              onClick={async () => {
+                await markAllNotificationsRead(token);
+                setUnreadCount(0);
+                setNotifications((prev) => prev.map((item) => ({ ...item, is_read: true })));
+                window.dispatchEvent(new Event("notifications:read-all"));
+              }}
+            >
+              {t("markAllRead")}
+            </button>
+            <button type="button" className="notify-close-btn" onClick={() => router.push("/")}>×</button>
+          </div>
         </div>
 
         {prefs ? (
@@ -141,9 +156,18 @@ export default function NotificationsScreen() {
         ) : null}
 
         <ul className="notify-list">
-          {notifications.map((item) => (
+          {notifications.filter((item) => !item.is_read).map((item) => (
             <li key={item.id}>
-              <a href={item.link_url || "/"} style={{ fontWeight: item.is_read ? 500 : 700 }}>{item.title}</a>
+              <a
+                href={item.link_url || "/"}
+                style={{ fontWeight: 700 }}
+                onClick={async (event) => {
+                  event.preventDefault();
+                  await openNotification(item);
+                }}
+              >
+                {item.title}
+              </a>
               <small>{item.body}</small>
             </li>
           ))}

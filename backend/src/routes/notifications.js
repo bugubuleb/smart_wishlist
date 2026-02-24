@@ -161,3 +161,18 @@ notificationRouter.post("/notifications/read-all", requireAuth, async (req, res)
   );
   return res.json({ ok: true });
 });
+
+notificationRouter.post("/notifications/:id/read", requireAuth, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ message: "Invalid notification id" });
+  }
+
+  await pool.query(
+    `UPDATE notifications
+     SET is_read = true
+     WHERE id = $1 AND user_id = $2`,
+    [id, req.user.userId],
+  );
+  return res.json({ ok: true });
+});

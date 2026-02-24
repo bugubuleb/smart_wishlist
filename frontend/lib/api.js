@@ -233,6 +233,14 @@ export function markAllNotificationsRead(token) {
   });
 }
 
+export function markNotificationRead(notificationId, token) {
+  return request(`/notifications/${notificationId}/read`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({}),
+  });
+}
+
 export function getNotificationPreferences(token) {
   return request("/notifications/preferences", {
     headers: { Authorization: `Bearer ${token}` },
