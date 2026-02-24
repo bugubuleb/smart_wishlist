@@ -1,6 +1,5 @@
 import http from "http";
 
-import cors from "cors";
 import express from "express";
 
 import { env } from "./config/env.js";
@@ -15,17 +14,27 @@ import { attachRealtimeServer } from "./realtime/server.js";
 
 const app = express();
 
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin) return callback(null, true);
-      const normalized = String(origin).replace(/\/+$/, "");
-      if (env.corsOrigins.includes(normalized)) return callback(null, true);
-      if (/^https:\/\/[a-z0-9-]+\.up\.railway\.app$/i.test(normalized)) return callback(null, true);
-      return callback(null, false);
-    },
-  }),
-);
+app.use((req, res, next) => {
+  const origin = String(req.headers.origin || "").replace(/\/+$/, "");
+  const isAllowed =
+    !origin
+    || env.corsOrigins.includes(origin)
+    || /^https:\/\/[a-z0-9-]+\.up\.railway\.app$/i.test(origin);
+
+  if (isAllowed && origin) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Vary", "Origin");
+  }
+
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.header("Access-Control-Allow-Methods", "GET,POST,PATCH,PUT,DELETE,OPTIONS");
+
+  if (req.method === "OPTIONS") {
+    return res.status(204).end();
+  }
+
+  return next();
+});
 app.use(express.json());
 
 app.use("/api", healthRouter);
