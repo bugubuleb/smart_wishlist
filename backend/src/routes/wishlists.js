@@ -325,7 +325,7 @@ wishlistRouter.post("/wishlists", requireAuth, async (req, res) => {
            ON whu.wishlist_id = $2 AND whu.user_id = f.friend_user_id
          WHERE f.user_id = $1
            AND whu.id IS NULL
-           AND NOT ($3 = true AND $4 IS NOT NULL AND f.friend_user_id = $4)`,
+           AND NOT ($3::boolean = true AND $4::int IS NOT NULL AND f.friend_user_id = $4::int)`,
         [
           req.user.userId,
           wishlistId,
