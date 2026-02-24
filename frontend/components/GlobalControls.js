@@ -123,9 +123,16 @@ export default function GlobalControls() {
       setUnreadCount(0);
       setNotifications((prev) => prev.map((item) => ({ ...item, is_read: true })));
     }
+    function onNotificationReadOne() {
+      setUnreadCount((prev) => Math.max(prev - 1, 0));
+    }
 
     window.addEventListener("notifications:read-all", onNotificationsReadAll);
-    return () => window.removeEventListener("notifications:read-all", onNotificationsReadAll);
+    window.addEventListener("notifications:read-one", onNotificationReadOne);
+    return () => {
+      window.removeEventListener("notifications:read-all", onNotificationsReadAll);
+      window.removeEventListener("notifications:read-one", onNotificationReadOne);
+    };
   }, []);
 
   const isAuthPage = pathname === "/login" || pathname === "/register";
@@ -190,10 +197,26 @@ export default function GlobalControls() {
     await markNotificationRead(item.id, token).catch(() => {});
     setNotifications((prev) => prev.filter((entry) => Number(entry.id) !== Number(item.id)));
     setUnreadCount((prev) => Math.max(prev - 1, 0));
+    window.dispatchEvent(new Event("notifications:read-one"));
     if (window.location.pathname !== item.link_url && item.link_url) {
       router.push(item.link_url);
     }
   }
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    if (!pathname?.startsWith("/wishlist/")) return;
+
+    const related = notifications.filter((item) => !item.is_read && item.link_url === pathname);
+    if (!related.length) return;
+
+    related.forEach((item) => {
+      markNotificationRead(item.id, token).catch(() => {});
+    });
+    setNotifications((prev) => prev.filter((item) => !(item.link_url === pathname && !item.is_read)));
+    setUnreadCount((prev) => Math.max(prev - related.length, 0));
+  }, [pathname, notifications]);
 
   if (isAuthPage) {
     return (
@@ -237,7 +260,6 @@ export default function GlobalControls() {
           aria-label="Notifications"
           title="Notifications"
           onClick={() => {
-            window.dispatchEvent(new Event("notifications:read-all"));
             router.push("/notifications");
           }}
         >

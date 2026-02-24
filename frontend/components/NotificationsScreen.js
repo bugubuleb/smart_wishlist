@@ -37,27 +37,15 @@ export default function NotificationsScreen() {
 
     getNotifications(token).then((data) => {
       setNotifications(data.notifications || []);
-      const unread = Number(data.unreadCount || 0);
-      setUnreadCount(unread);
-      if (unread > 0) {
-        markAllNotificationsRead(token).then(() => {
-          setUnreadCount(0);
-          setNotifications((prev) => prev.map((item) => ({ ...item, is_read: true })));
-          window.dispatchEvent(new Event("notifications:read-all"));
-        }).catch(() => {});
-      } else {
-        window.dispatchEvent(new Event("notifications:read-all"));
-      }
+      setUnreadCount(Number(data.unreadCount || 0));
     }).catch(() => {});
 
     getNotificationPreferences(token).then(setPrefs).catch(() => {});
 
     const socket = connectNotificationSocket(token, (event) => {
       if (event.type === "notification.created" && event.notification) {
-        setNotifications((prev) => [{ ...event.notification, is_read: true }, ...prev].slice(0, 50));
-        setUnreadCount(0);
-        markAllNotificationsRead(token).catch(() => {});
-        window.dispatchEvent(new Event("notifications:read-all"));
+        setNotifications((prev) => [event.notification, ...prev].slice(0, 50));
+        setUnreadCount((prev) => prev + 1);
       }
     });
     return () => socket.close();
@@ -107,8 +95,8 @@ export default function NotificationsScreen() {
     await markNotificationRead(item.id, token).catch(() => {});
     setNotifications((prev) => prev.filter((entry) => Number(entry.id) !== Number(item.id)));
     setUnreadCount((prev) => Math.max(prev - 1, 0));
+    window.dispatchEvent(new Event("notifications:read-one"));
     if (item.link_url) router.push(item.link_url);
-    window.dispatchEvent(new Event("notifications:read-all"));
   }
 
   if (!token) {

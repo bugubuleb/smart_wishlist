@@ -1,6 +1,6 @@
 import { env } from "../config/env.js";
 import { pool } from "../db/pool.js";
-import { broadcast, hasRoomClients } from "../realtime/hub.js";
+import { broadcast } from "../realtime/hub.js";
 
 let webpushLib = null;
 let webpushInitTried = false;
@@ -47,7 +47,7 @@ export async function createNotification({
   }
 
   const webpushReady = await ensureWebpushReady();
-  if (!sendPush || !pushEnabled || !webpushReady || hasRoomClients(`user:${userId}`)) {
+  if (!sendPush || !pushEnabled || !webpushReady) {
     return notification;
   }
 
