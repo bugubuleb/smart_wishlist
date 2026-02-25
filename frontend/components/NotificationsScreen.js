@@ -5,10 +5,8 @@ import { useRouter } from "next/navigation";
 
 import { useLanguage } from "@/components/LanguageProvider";
 import {
-  getPushStatus,
   getNotificationPreferences,
   getNotifications,
-  sendTestPush,
   getVapidPublicKey,
   markAllNotificationsRead,
   markNotificationRead,
@@ -31,8 +29,6 @@ export default function NotificationsScreen() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [prefs, setPrefs] = useState(null);
-  const [pushStatus, setPushStatus] = useState(null);
-  const [pushInfo, setPushInfo] = useState("");
   const token = useMemo(() => getToken(), []);
   const { t } = useLanguage();
 
@@ -45,7 +41,6 @@ export default function NotificationsScreen() {
     }).catch(() => {});
 
     getNotificationPreferences(token).then(setPrefs).catch(() => {});
-    getPushStatus(token).then(setPushStatus).catch(() => setPushStatus(null));
 
     const socket = connectNotificationSocket(token, (event) => {
       if (event.type === "notification.created" && event.notification) {
@@ -104,14 +99,6 @@ export default function NotificationsScreen() {
     if (item.link_url) router.push(item.link_url);
   }
 
-  async function handleTestPush() {
-    if (!token) return;
-    const response = await sendTestPush(token);
-    setPushStatus(response.status || null);
-    setPushInfo(t("notificationsPushSent"));
-    setTimeout(() => setPushInfo(""), 2500);
-  }
-
   if (!token) {
     return (
       <main className="container">
@@ -155,19 +142,6 @@ export default function NotificationsScreen() {
             <label><input type="checkbox" checked={prefs.friendRequestsEnabled} onChange={(e) => togglePref({ friendRequestsEnabled: e.target.checked })} /> {t("notificationsFriends")}</label>
           </div>
         ) : null}
-
-        <div style={{ display: "grid", gap: 8 }}>
-          <div style={{ color: "var(--muted)", fontSize: 13 }}>
-            {t("notificationsPushStatus")}: {pushStatus ? `vapid=${pushStatus.vapidConfigured ? "ok" : "off"}, ready=${pushStatus.webpushReady ? "ok" : "off"}, pref=${pushStatus.pushPreferenceEnabled ? "on" : "off"}, subs=${pushStatus.subscriptionCount}` : "-"}
-          </div>
-          {pushStatus?.webpushInitError ? (
-            <div style={{ color: "#ef4444", fontSize: 12 }}>{pushStatus.webpushInitError}</div>
-          ) : null}
-          <button type="button" className="notify-mark-read" onClick={handleTestPush}>
-            {t("notificationsPushTest")}
-          </button>
-          {pushInfo ? <small style={{ color: "var(--muted)" }}>{pushInfo}</small> : null}
-        </div>
 
         <ul className="notify-list">
           {notifications.filter((item) => !item.is_read).map((item) => (
