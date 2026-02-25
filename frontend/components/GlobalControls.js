@@ -63,6 +63,7 @@ export default function GlobalControls() {
   const [prefs, setPrefs] = useState(null);
   const [toast, setToast] = useState(null);
   const [showPushPrompt, setShowPushPrompt] = useState(false);
+  const [showIosInstallBanner, setShowIosInstallBanner] = useState(false);
   const unreadNotifications = notifications.filter((item) => !item.is_read);
 
   useEffect(() => {
@@ -152,6 +153,25 @@ export default function GlobalControls() {
     const asked = window.localStorage.getItem("sw_push_permission_prompted_v1") === "1";
     if (!asked) setShowPushPrompt(true);
   }, [isAuthed, isAuthPage, pushSupported]);
+
+  useEffect(() => {
+    if (!isAuthed || isAuthPage) return;
+    if (typeof window === "undefined") return;
+
+    const seen = window.localStorage.getItem("sw_ios_install_banner_seen_v1") === "1";
+    if (seen) return;
+
+    const ua = window.navigator.userAgent || "";
+    const platform = window.navigator.platform || "";
+    const maxTouchPoints = Number(window.navigator.maxTouchPoints || 0);
+    const isIOS = /iPad|iPhone|iPod/i.test(ua) || (platform === "MacIntel" && maxTouchPoints > 1);
+    if (!isIOS) return;
+
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || Boolean(window.navigator.standalone);
+    if (isStandalone) return;
+
+    setShowIosInstallBanner(true);
+  }, [isAuthed, isAuthPage]);
 
   useEffect(() => {
     if (!isAuthed || !prefs?.pushEnabled || !pushSupported) return;
@@ -428,6 +448,26 @@ export default function GlobalControls() {
               onClick={() => {
                 window.localStorage.setItem("sw_push_permission_prompted_v1", "1");
                 setShowPushPrompt(false);
+              }}
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {showIosInstallBanner ? (
+        <div className="ios-install-banner card">
+          <strong>{t("iosInstallBannerTitle")}</strong>
+          <span>{t("iosInstallBannerBody")}</span>
+          <div className="push-permission-actions">
+            <button
+              type="button"
+              className="notify-close-btn"
+              onClick={() => {
+                window.localStorage.setItem("sw_ios_install_banner_seen_v1", "1");
+                setShowIosInstallBanner(false);
               }}
               aria-label="Close"
             >

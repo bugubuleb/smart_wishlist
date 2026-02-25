@@ -144,6 +144,8 @@ export const translations = {
     notificationsPushTest: "Тест push",
     notificationsPushStatus: "Статус push",
     notificationsPushSent: "Тестовое push отправлено.",
+    iosInstallBannerTitle: "Чтобы получать уведомления",
+    iosInstallBannerBody: "Добавьте приложение на домашний экран: Поделиться -> На экран «Домой».",
   },
   en: {
     appTitle: "Smart Wishlist",
@@ -286,6 +288,8 @@ export const translations = {
     notificationsPushTest: "Test push",
     notificationsPushStatus: "Push status",
     notificationsPushSent: "Test push sent.",
+    iosInstallBannerTitle: "To receive notifications",
+    iosInstallBannerBody: "Add the app to Home Screen: Share -> Add to Home Screen.",
   },
 };
 

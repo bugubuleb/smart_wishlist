@@ -377,6 +377,22 @@ button {
   gap: 8px;
 }
 
+.ios-install-banner {
+  position: fixed;
+  right: 14px;
+  top: calc(env(safe-area-inset-top, 0px) + 72px);
+  z-index: 121;
+  width: min(92vw, 360px);
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.ios-install-banner span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
 .push-permission-prompt span {
   color: var(--muted);
   font-size: 14px;
@@ -589,6 +605,13 @@ button:active {
     left: 10px;
     width: auto;
     bottom: calc(env(safe-area-inset-bottom, 0px) + 78px);
+  }
+
+  .ios-install-banner {
+    right: 10px;
+    left: 10px;
+    width: auto;
+    top: calc(env(safe-area-inset-top, 0px) + 66px);
   }
 
   .theme-toggle {
