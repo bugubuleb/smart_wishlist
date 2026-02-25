@@ -4,6 +4,7 @@ import { broadcast } from "../realtime/hub.js";
 
 let webpushLib = null;
 let webpushInitTried = false;
+let webpushInitError = null;
 
 const pushEnabled = Boolean(
   env.vapidPublicKey
@@ -18,10 +19,36 @@ async function ensureWebpushReady() {
     const module = await import("web-push");
     webpushLib = module.default || module;
     webpushLib.setVapidDetails(env.vapidSubject, env.vapidPublicKey, env.vapidPrivateKey);
+    webpushInitError = null;
     return true;
-  } catch {
+  } catch (error) {
+    webpushInitError = error?.message || "web-push init failed";
+    console.error("Web-push init failed:", webpushInitError);
     return false;
   }
+}
+
+export async function getPushDiagnostics(userId) {
+  const webpushReady = await ensureWebpushReady();
+  const prefs = await pool.query(
+    `SELECT push_enabled
+     FROM notification_preferences
+     WHERE user_id = $1`,
+    [userId],
+  );
+  const subscriptions = await pool.query(
+    `SELECT COUNT(*)::int AS count
+     FROM push_subscriptions
+     WHERE user_id = $1`,
+    [userId],
+  );
+  return {
+    vapidConfigured: pushEnabled,
+    webpushReady,
+    webpushInitError,
+    pushPreferenceEnabled: prefs.rowCount ? Boolean(prefs.rows[0].push_enabled) : true,
+    subscriptionCount: Number(subscriptions.rows[0]?.count || 0),
+  };
 }
 
 export async function createNotification({
@@ -90,6 +117,12 @@ export async function createNotification({
       const code = Number(error?.statusCode || 0);
       if (code === 404 || code === 410) {
         await pool.query("DELETE FROM push_subscriptions WHERE id = $1", [sub.id]);
+      } else {
+        console.error("Push send failed:", {
+          statusCode: error?.statusCode,
+          message: error?.message,
+          endpoint: String(sub.endpoint || "").slice(0, 120),
+        });
       }
     }
   }

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { env } from "../config/env.js";
 import { pool } from "../db/pool.js";
 import { requireAuth } from "../middleware/auth.js";
+import { createNotificationLocalized, getPushDiagnostics } from "../services/notifications.js";
 
 const preferencesSchema = z.object({
   inAppEnabled: z.boolean().optional(),
@@ -175,4 +176,31 @@ notificationRouter.post("/notifications/:id/read", requireAuth, async (req, res)
     [id, req.user.userId],
   );
   return res.json({ ok: true });
+});
+
+notificationRouter.get("/notifications/push-status", requireAuth, async (req, res) => {
+  const status = await getPushDiagnostics(req.user.userId);
+  return res.json(status);
+});
+
+notificationRouter.post("/notifications/test-push", requireAuth, async (req, res) => {
+  await createNotificationLocalized({
+    userId: req.user.userId,
+    preferenceColumn: "true",
+    type: "push.test",
+    link: "/notifications",
+    data: { source: "test" },
+    texts: {
+      ru: {
+        title: "Тест push-уведомления",
+        body: "Если ты видишь это, push работает корректно.",
+      },
+      en: {
+        title: "Push test notification",
+        body: "If you see this, push is working correctly.",
+      },
+    },
+  });
+  const status = await getPushDiagnostics(req.user.userId);
+  return res.json({ ok: true, status });
 });

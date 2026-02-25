@@ -261,6 +261,20 @@ export function getVapidPublicKey(token) {
   });
 }
 
+export function getPushStatus(token) {
+  return request("/notifications/push-status", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function sendTestPush(token) {
+  return request("/notifications/test-push", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({}),
+  });
+}
+
 export function subscribePush(payload, token) {
   return request("/notifications/subscribe", {
     method: "POST",

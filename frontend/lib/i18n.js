@@ -141,6 +141,9 @@ export const translations = {
     notificationsPushPromptTitle: "Включить push-уведомления?",
     notificationsPushPromptBody: "Разреши уведомления на этом устройстве, чтобы получать важные события даже вне приложения.",
     notificationsAllow: "Разрешить",
+    notificationsPushTest: "Тест push",
+    notificationsPushStatus: "Статус push",
+    notificationsPushSent: "Тестовое push отправлено.",
   },
   en: {
     appTitle: "Smart Wishlist",
@@ -280,6 +283,9 @@ export const translations = {
     notificationsPushPromptTitle: "Enable push notifications?",
     notificationsPushPromptBody: "Allow notifications on this device to receive important updates even when the app is closed.",
     notificationsAllow: "Allow",
+    notificationsPushTest: "Test push",
+    notificationsPushStatus: "Push status",
+    notificationsPushSent: "Test push sent.",
   },
 };
 
