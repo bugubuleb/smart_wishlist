@@ -62,6 +62,7 @@ export default function GlobalControls() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [prefs, setPrefs] = useState(null);
   const [toast, setToast] = useState(null);
+  const [showPushPrompt, setShowPushPrompt] = useState(false);
 
   useEffect(() => {
     function syncAuth() {
@@ -144,6 +145,14 @@ export default function GlobalControls() {
   );
 
   useEffect(() => {
+    if (!isAuthed || isAuthPage || !pushSupported) return;
+    if (typeof Notification === "undefined") return;
+    if (Notification.permission !== "default") return;
+    const asked = window.localStorage.getItem("sw_push_permission_prompted_v1") === "1";
+    if (!asked) setShowPushPrompt(true);
+  }, [isAuthed, isAuthPage, pushSupported]);
+
+  useEffect(() => {
     if (!isAuthed || !prefs?.pushEnabled || !pushSupported) return;
     if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
     togglePushSubscription(true).catch(() => {});
@@ -189,6 +198,16 @@ export default function GlobalControls() {
     }
 
     await subscribePush(subscription.toJSON(), token);
+  }
+
+  async function requestPushPermissionOnce() {
+    window.localStorage.setItem("sw_push_permission_prompted_v1", "1");
+    setShowPushPrompt(false);
+    if (typeof Notification === "undefined") return;
+
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") return;
+    await togglePushSubscription(true).catch(() => {});
   }
 
   async function openNotification(item) {
@@ -384,6 +403,33 @@ export default function GlobalControls() {
           <strong>{toast.title}</strong>
           <span>{toast.body}</span>
         </a>
+      ) : null}
+
+      {showPushPrompt ? (
+        <div className="push-permission-prompt card">
+          <strong>{t("notificationsPushPromptTitle")}</strong>
+          <span>{t("notificationsPushPromptBody")}</span>
+          <div className="push-permission-actions">
+            <button
+              type="button"
+              className="notify-mark-read"
+              onClick={requestPushPermissionOnce}
+            >
+              {t("notificationsAllow")}
+            </button>
+            <button
+              type="button"
+              className="notify-close-btn"
+              onClick={() => {
+                window.localStorage.setItem("sw_push_permission_prompted_v1", "1");
+                setShowPushPrompt(false);
+              }}
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+        </div>
       ) : null}
     </>
   );

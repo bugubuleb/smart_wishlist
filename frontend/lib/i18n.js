@@ -138,6 +138,9 @@ export const translations = {
     notificationsFunding: "Полное финансирование",
     notificationsFriends: "Друзья",
     notificationsEnablePrompt: "Нужно разрешить уведомления в браузере.",
+    notificationsPushPromptTitle: "Включить push-уведомления?",
+    notificationsPushPromptBody: "Разреши уведомления на этом устройстве, чтобы получать важные события даже вне приложения.",
+    notificationsAllow: "Разрешить",
   },
   en: {
     appTitle: "Smart Wishlist",
@@ -274,6 +277,9 @@ export const translations = {
     notificationsFunding: "Funding complete",
     notificationsFriends: "Friends",
     notificationsEnablePrompt: "Browser notification permission is required.",
+    notificationsPushPromptTitle: "Enable push notifications?",
+    notificationsPushPromptBody: "Allow notifications on this device to receive important updates even when the app is closed.",
+    notificationsAllow: "Allow",
   },
 };
 

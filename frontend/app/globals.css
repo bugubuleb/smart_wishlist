@@ -366,6 +366,28 @@ button {
   gap: 4px;
 }
 
+.push-permission-prompt {
+  position: fixed;
+  right: 14px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 86px);
+  z-index: 121;
+  width: min(92vw, 360px);
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.push-permission-prompt span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.push-permission-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .app-shell {
   position: relative;
   z-index: 1;
@@ -560,6 +582,13 @@ button:active {
     margin: 12px auto;
     padding: 14px 8px 18px;
     width: min(96vw, 1120px);
+  }
+
+  .push-permission-prompt {
+    right: 10px;
+    left: 10px;
+    width: auto;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 78px);
   }
 
   .theme-toggle {
