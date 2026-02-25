@@ -31,6 +31,7 @@ export default function NotificationsScreen() {
   const [prefs, setPrefs] = useState(null);
   const token = useMemo(() => getToken(), []);
   const { t } = useLanguage();
+  const unreadNotifications = notifications.filter((item) => !item.is_read);
 
   useEffect(() => {
     if (!token) return undefined;
@@ -116,21 +117,24 @@ export default function NotificationsScreen() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
           <h2 style={{ margin: 0 }}>{t("notificationsTitle")} {unreadCount > 0 ? `(${Math.min(unreadCount, 99)})` : ""}</h2>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button
-              type="button"
-              className="notify-mark-read"
-              onClick={async () => {
-                await markAllNotificationsRead(token);
-                setUnreadCount(0);
-                setNotifications((prev) => prev.map((item) => ({ ...item, is_read: true })));
-                window.dispatchEvent(new Event("notifications:read-all"));
-              }}
-            >
-              {t("markAllRead")}
-            </button>
             <button type="button" className="notify-close-btn" onClick={() => router.push("/")}>×</button>
           </div>
         </div>
+
+        {unreadNotifications.length > 0 ? (
+          <button
+            type="button"
+            className="notify-mark-read"
+            onClick={async () => {
+              await markAllNotificationsRead(token);
+              setUnreadCount(0);
+              setNotifications((prev) => prev.map((item) => ({ ...item, is_read: true })));
+              window.dispatchEvent(new Event("notifications:read-all"));
+            }}
+          >
+            {t("markAllRead")}
+          </button>
+        ) : null}
 
         {prefs ? (
           <div className="notify-prefs">
@@ -144,7 +148,7 @@ export default function NotificationsScreen() {
         ) : null}
 
         <ul className="notify-list">
-          {notifications.filter((item) => !item.is_read).map((item) => (
+          {unreadNotifications.map((item) => (
             <li key={item.id}>
               <a
                 href={item.link_url || "/"}

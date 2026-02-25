@@ -63,6 +63,7 @@ export default function GlobalControls() {
   const [prefs, setPrefs] = useState(null);
   const [toast, setToast] = useState(null);
   const [showPushPrompt, setShowPushPrompt] = useState(false);
+  const unreadNotifications = notifications.filter((item) => !item.is_read);
 
   useEffect(() => {
     function syncAuth() {
@@ -337,7 +338,10 @@ export default function GlobalControls() {
             </>
           ) : (
             <>
-              <h4 style={{ margin: 0 }}>{t("notificationsTab")} {unreadCount > 0 ? `(${Math.min(unreadCount, 99)})` : ""}</h4>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <h4 style={{ margin: 0 }}>{t("notificationsTab")} {unreadCount > 0 ? `(${Math.min(unreadCount, 99)})` : ""}</h4>
+                <button type="button" className="notify-close-btn" onClick={() => setMobileOpen(false)}>×</button>
+              </div>
               {isAuthed && prefs ? (
                 <div className="notify-prefs">
                   <label><input type="checkbox" checked={prefs.inAppEnabled} onChange={(e) => togglePref({ inAppEnabled: e.target.checked })} /> {t("notificationsInApp")}</label>
@@ -350,7 +354,7 @@ export default function GlobalControls() {
               ) : (
                 <p style={{ margin: 0, color: "var(--muted)" }}>{t("loginToViewNotifications")}</p>
               )}
-              {isAuthed ? (
+              {isAuthed && unreadNotifications.length > 0 ? (
                 <>
                   <button
                     type="button"
@@ -365,25 +369,26 @@ export default function GlobalControls() {
                   >
                     {t("markAllRead")}
                   </button>
-                  <button type="button" className="notify-close-btn" onClick={() => setMobileOpen(false)}>×</button>
-                  <ul className="notify-list">
-                    {notifications.filter((item) => !item.is_read).map((item) => (
-                      <li key={item.id}>
-                        <a
-                          href={item.link_url || "/"}
-                          style={{ fontWeight: 700 }}
-                          onClick={async (event) => {
-                            event.preventDefault();
-                            await openNotification(item);
-                          }}
-                        >
-                          {item.title}
-                        </a>
-                        <small>{item.body}</small>
-                      </li>
-                    ))}
-                  </ul>
                 </>
+              ) : null}
+              {isAuthed ? (
+                <ul className="notify-list">
+                  {unreadNotifications.map((item) => (
+                    <li key={item.id}>
+                      <a
+                        href={item.link_url || "/"}
+                        style={{ fontWeight: 700 }}
+                        onClick={async (event) => {
+                          event.preventDefault();
+                          await openNotification(item);
+                        }}
+                      >
+                        {item.title}
+                      </a>
+                      <small>{item.body}</small>
+                    </li>
+                  ))}
+                </ul>
               ) : null}
             </>
           )}
