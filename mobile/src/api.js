@@ -39,6 +39,22 @@ export function getMe(token) {
   });
 }
 
+export function setLanguagePreference(language, token) {
+  return request("/auth/language", {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ language }),
+  });
+}
+
+export function setCurrencyPreference(currency, token) {
+  return request("/auth/currency", {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ currency }),
+  });
+}
+
 export function getMyWishlists(token) {
   return request("/wishlists/mine", {
     headers: { Authorization: `Bearer ${token}` },
@@ -59,8 +75,129 @@ export function createWishlist(payload, token) {
   });
 }
 
+export function deleteWishlist(slug, token) {
+  return request(`/wishlists/${slug}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
 export function getWishlist(slug, token) {
   return request(`/wishlists/${slug}`, {
     headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function createItem(slug, payload, token) {
+  return request(`/wishlists/${slug}/items`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function removeItem(itemId, reason, token) {
+  return request(`/items/${itemId}/remove`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export function contributeToItem(itemId, amount, token) {
+  return request(`/items/${itemId}/contribute`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ amount }),
+  });
+}
+
+export function reserveItem(itemId, token) {
+  return request(`/items/${itemId}/reserve`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({}),
+  });
+}
+
+export function unreserveItem(itemId, token) {
+  return request(`/items/${itemId}/reserve`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({}),
+  });
+}
+
+export function setItemResponsible(itemId, token) {
+  return request(`/items/${itemId}/responsible`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({}),
+  });
+}
+
+export function unsetItemResponsible(itemId, token) {
+  return request(`/items/${itemId}/responsible`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function setItemPriority(itemId, priority, token) {
+  return request(`/items/${itemId}/priority`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ priority }),
+  });
+}
+
+export function getFriends(token) {
+  return request("/friends", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function sendFriendRequest(username, visibleWishlistIds, token) {
+  return request("/friends/request", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ username, visibleWishlistIds }),
+  });
+}
+
+export function acceptFriendRequest(requestId, visibleWishlistIds, token) {
+  return request(`/friends/requests/${requestId}/accept`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ visibleWishlistIds }),
+  });
+}
+
+export function rejectFriendRequest(requestId, token) {
+  return request(`/friends/requests/${requestId}/reject`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getNotifications(token) {
+  return request("/notifications", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function markAllNotificationsRead(token) {
+  return request("/notifications/read-all", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({}),
+  });
+}
+
+export function markNotificationRead(notificationId, token) {
+  return request(`/notifications/${notificationId}/read`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({}),
   });
 }

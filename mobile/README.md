@@ -37,3 +37,4 @@ SMARTWISHLIST_API_URL=https://smartwishlist-production.up.railway.app/api
 ## Notes
 - This is a CLI-based React Native app (not PWA).
 - Apple developer account is not required at this stage for local builds.
+- iOS requires CocoaPods installation before first run.

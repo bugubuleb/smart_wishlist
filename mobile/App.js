@@ -1,14 +1,30 @@
 import React, { useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 
 import LoginScreen from "./src/screens/LoginScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
 import DashboardScreen from "./src/screens/DashboardScreen";
 import WishlistScreen from "./src/screens/WishlistScreen";
+import FriendsScreen from "./src/screens/FriendsScreen";
+import NotificationsScreen from "./src/screens/NotificationsScreen";
+import SettingsScreen from "./src/screens/SettingsScreen";
 import { getToken } from "./src/storage";
 
 const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
+
+function AppTabs() {
+  return (
+    <Tab.Navigator screenOptions={{ headerShown: false }}>
+      <Tab.Screen name="Home" component={DashboardScreen} />
+      <Tab.Screen name="Friends" component={FriendsScreen} />
+      <Tab.Screen name="Notifications" component={NotificationsScreen} />
+      <Tab.Screen name="Settings" component={SettingsScreen} />
+    </Tab.Navigator>
+  );
+}
 
 export default function App() {
   const [ready, setReady] = useState(false);
@@ -30,7 +46,7 @@ export default function App() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {isAuthed ? (
           <>
-            <Stack.Screen name="Home" component={DashboardScreen} />
+            <Stack.Screen name="Tabs" component={AppTabs} />
             <Stack.Screen name="Wishlist" component={WishlistScreen} />
           </>
         ) : (

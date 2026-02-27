@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, FlatList, TextInput } from "react-native";
+import { View, Text, StyleSheet, FlatList } from "react-native";
 import Button from "../components/Button";
-import { clearToken, getToken } from "../storage";
+import Input from "../components/Input";
+import { getToken } from "../storage";
 import { createWishlist, getMyWishlists, getSharedWishlists } from "../api";
 
 export default function DashboardScreen({ navigation }) {
@@ -34,35 +35,14 @@ export default function DashboardScreen({ navigation }) {
     await loadData();
   }
 
-  async function handleLogout() {
-    await clearToken();
-    navigation.reset({ index: 0, routes: [{ name: "Login" }] });
-  }
-
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>My wishlists</Text>
-        <Button title="Logout" onPress={handleLogout} variant="secondary" />
-      </View>
+      <Text style={styles.title}>Smart Wishlist</Text>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Create wishlist</Text>
-        <TextInput
-          placeholder="Title"
-          placeholderTextColor="#9aa4bf"
-          value={title}
-          onChangeText={setTitle}
-          style={styles.input}
-        />
-        <TextInput
-          placeholder="Min contribution"
-          placeholderTextColor="#9aa4bf"
-          value={minContribution}
-          onChangeText={setMinContribution}
-          keyboardType="numeric"
-          style={styles.input}
-        />
+        <Input label="Title" value={title} onChangeText={setTitle} placeholder="Wishlist title" />
+        <Input label="Min contribution" value={minContribution} onChangeText={setMinContribution} placeholder="100" keyboardType="numeric" />
         <Button title="Create" onPress={handleCreate} />
       </View>
 
@@ -75,6 +55,7 @@ export default function DashboardScreen({ navigation }) {
             {item.title}
           </Text>
         )}
+        ListEmptyComponent={<Text style={styles.empty}>No wishlists yet.</Text>}
       />
 
       <Text style={styles.sectionTitle}>Shared with you</Text>
@@ -86,6 +67,7 @@ export default function DashboardScreen({ navigation }) {
             {item.title}
           </Text>
         )}
+        ListEmptyComponent={<Text style={styles.empty}>No shared lists.</Text>}
       />
     </View>
   );
@@ -96,37 +78,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#0d111d",
     padding: 20,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
+    gap: 12,
   },
   title: {
     color: "#ffffff",
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: "800",
   },
   card: {
     backgroundColor: "#141d30",
     borderRadius: 14,
     padding: 16,
-    marginBottom: 16,
-    gap: 10,
+    gap: 12,
   },
   cardTitle: {
     color: "#ffffff",
     fontWeight: "700",
-  },
-  input: {
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "#0f1626",
-    borderWidth: 1,
-    borderColor: "#263351",
-    color: "#ffffff",
-    paddingHorizontal: 12,
   },
   sectionTitle: {
     color: "#aebadb",
@@ -139,5 +106,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: "#1f2b44",
+  },
+  empty: {
+    color: "#9aa4bf",
   },
 });
