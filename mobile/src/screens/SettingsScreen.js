@@ -1,12 +1,30 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import Button from "../components/Button";
 import { clearToken, getToken } from "../storage";
-import { setCurrencyPreference, setLanguagePreference } from "../api";
+import { setCurrencyPreference, setLanguagePreference, getMe, getAvailableCurrencies } from "../api";
+import { getLanguage, setLanguage, t } from "../i18n";
 
 export default function SettingsScreen({ navigation }) {
-  const [language, setLanguage] = useState("ru");
+  const [language, setLanguageState] = useState("ru");
   const [currency, setCurrency] = useState("RUB");
+  const [availableCurrencies, setAvailableCurrencies] = useState(["RUB", "USD", "EUR", "KZT"]);
+
+  useEffect(() => {
+    getLanguage().then(setLanguageState);
+  }, []);
+
+  useEffect(() => {
+    async function load() {
+      const token = await getToken();
+      if (!token) return;
+      const me = await getMe(token);
+      if (me?.currency) setCurrency(me.currency);
+      const list = await getAvailableCurrencies().catch(() => null);
+      if (list?.currencies) setAvailableCurrencies(list.currencies);
+    }
+    load();
+  }, []);
 
   async function handleLogout() {
     await clearToken();
@@ -16,7 +34,8 @@ export default function SettingsScreen({ navigation }) {
   async function updateLanguage(next) {
     const token = await getToken();
     if (!token) return;
-    setLanguage(next);
+    setLanguageState(next);
+    await setLanguage(next);
     await setLanguagePreference(next, token);
   }
 
@@ -29,23 +48,23 @@ export default function SettingsScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Settings</Text>
+      <Text style={styles.title}>{t(language, "settings")}</Text>
       <View style={styles.card}>
-        <Text style={styles.label}>Language</Text>
+        <Text style={styles.label}>{t(language, "language")}</Text>
         <View style={styles.row}>
           <Button title="RU" onPress={() => updateLanguage("ru")} variant={language === "ru" ? "primary" : "secondary"} />
           <Button title="EN" onPress={() => updateLanguage("en")} variant={language === "en" ? "primary" : "secondary"} />
         </View>
       </View>
       <View style={styles.card}>
-        <Text style={styles.label}>Currency</Text>
+        <Text style={styles.label}>{t(language, "currency")}</Text>
         <View style={styles.row}>
-          {['RUB','USD','EUR','KZT'].map((code) => (
+          {availableCurrencies.map((code) => (
             <Button key={code} title={code} onPress={() => updateCurrency(code)} variant={currency === code ? "primary" : "secondary"} />
           ))}
         </View>
       </View>
-      <Button title="Logout" onPress={handleLogout} variant="secondary" />
+      <Button title={t(language, "logout")} onPress={handleLogout} variant="secondary" />
     </View>
   );
 }

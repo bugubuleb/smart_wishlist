@@ -55,6 +55,16 @@ export function setCurrencyPreference(currency, token) {
   });
 }
 
+export function getAvailableCurrencies() {
+  return request("/auth/currencies");
+}
+
+export function lookupUserByUsername(username, token) {
+  return request(`/auth/lookup-user?username=${encodeURIComponent(username)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
 export function getMyWishlists(token) {
   return request("/wishlists/mine", {
     headers: { Authorization: `Bearer ${token}` },
@@ -148,6 +158,13 @@ export function setItemPriority(itemId, priority, token) {
     method: "PATCH",
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify({ priority }),
+  });
+}
+
+export function autofillByUrl(url, targetCurrency) {
+  return request("/products/preview", {
+    method: "POST",
+    body: JSON.stringify({ url, targetCurrency }),
   });
 }
 

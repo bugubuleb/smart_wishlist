@@ -3,9 +3,15 @@ import { View, Text, StyleSheet, FlatList } from "react-native";
 import Button from "../components/Button";
 import { getNotifications, markAllNotificationsRead, markNotificationRead } from "../api";
 import { getToken } from "../storage";
+import { getLanguage, t } from "../i18n";
 
 export default function NotificationsScreen() {
   const [notifications, setNotifications] = useState([]);
+  const [lang, setLang] = useState("ru");
+
+  useEffect(() => {
+    getLanguage().then(setLang);
+  }, []);
 
   async function loadNotifications() {
     const token = await getToken();
@@ -36,8 +42,8 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Notifications</Text>
-      {unread.length > 0 ? <Button title="Mark all read" onPress={handleReadAll} /> : null}
+      <Text style={styles.title}>{t(lang, "notifications")}</Text>
+      {unread.length > 0 ? <Button title={t(lang, "markAllRead")} onPress={handleReadAll} /> : null}
       <FlatList
         data={unread}
         keyExtractor={(item) => String(item.id)}
@@ -46,7 +52,7 @@ export default function NotificationsScreen() {
             {item.title}
           </Text>
         )}
-        ListEmptyComponent={<Text style={styles.empty}>No new notifications.</Text>}
+        ListEmptyComponent={<Text style={styles.empty}>{t(lang, "noNotifications")}</Text>}
       />
     </View>
   );

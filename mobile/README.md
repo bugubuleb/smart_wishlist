@@ -32,6 +32,7 @@ Set API endpoint (optional):
 
 ```
 SMARTWISHLIST_API_URL=https://smartwishlist-production.up.railway.app/api
+SMARTWISHLIST_WS_URL=wss://smartwishlist-production.up.railway.app/ws
 ```
 
 ## Notes

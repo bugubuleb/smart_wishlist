@@ -1,8 +1,10 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import Button from "../components/Button";
+import Input from "../components/Input";
 import { register } from "../api";
 import { setToken } from "../storage";
+import { t, getLanguage } from "../i18n";
 
 export default function RegisterScreen({ navigation }) {
   const [email, setEmail] = useState("");
@@ -11,6 +13,11 @@ export default function RegisterScreen({ navigation }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [lang, setLang] = useState("ru");
+
+  React.useEffect(() => {
+    getLanguage().then(setLang);
+  }, []);
 
   async function handleRegister() {
     if (!email || !username || !displayName || !password) return;
@@ -19,7 +26,7 @@ export default function RegisterScreen({ navigation }) {
     try {
       const data = await register({ email, username, displayName, password });
       await setToken(data.token);
-      navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+      navigation.reset({ index: 0, routes: [{ name: "Tabs" }] });
     } catch (err) {
       setError(err.message || "Registration failed");
     } finally {
@@ -29,41 +36,33 @@ export default function RegisterScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Create account</Text>
-      <TextInput
+      <Text style={styles.title}>{t(lang, "register")}</Text>
+      <Input
         placeholder="Email"
-        placeholderTextColor="#9aa4bf"
         value={email}
         onChangeText={setEmail}
-        style={styles.input}
         autoCapitalize="none"
       />
-      <TextInput
-        placeholder="Username"
-        placeholderTextColor="#9aa4bf"
+      <Input
+        placeholder={t(lang, "username")}
         value={username}
         onChangeText={setUsername}
-        style={styles.input}
         autoCapitalize="none"
       />
-      <TextInput
-        placeholder="Display name"
-        placeholderTextColor="#9aa4bf"
+      <Input
+        placeholder={t(lang, "displayName")}
         value={displayName}
         onChangeText={setDisplayName}
-        style={styles.input}
       />
-      <TextInput
-        placeholder="Password"
-        placeholderTextColor="#9aa4bf"
+      <Input
+        placeholder={t(lang, "password")}
         value={password}
         onChangeText={setPassword}
-        style={styles.input}
         secureTextEntry
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <Button title={loading ? "Please wait..." : "Register"} onPress={handleRegister} disabled={loading} />
-      <Button title="Back to login" onPress={() => navigation.goBack()} variant="secondary" />
+      <Button title={loading ? t(lang, "loading") : t(lang, "register")} onPress={handleRegister} disabled={loading} />
+      <Button title={t(lang, "backToLogin")} onPress={() => navigation.goBack()} variant="secondary" />
     </View>
   );
 }
@@ -80,15 +79,6 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 26,
     fontWeight: "800",
-  },
-  input: {
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "#161e32",
-    borderWidth: 1,
-    borderColor: "#2a3552",
-    color: "#ffffff",
-    paddingHorizontal: 12,
   },
   error: {
     color: "#ff6b6b",

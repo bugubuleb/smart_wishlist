@@ -4,12 +4,18 @@ import Button from "../components/Button";
 import Input from "../components/Input";
 import { getFriends, sendFriendRequest, acceptFriendRequest, rejectFriendRequest } from "../api";
 import { getToken } from "../storage";
+import { getLanguage, t } from "../i18n";
 
 export default function FriendsScreen() {
   const [friends, setFriends] = useState([]);
   const [incoming, setIncoming] = useState([]);
   const [outgoing, setOutgoing] = useState([]);
   const [username, setUsername] = useState("");
+  const [lang, setLang] = useState("ru");
+
+  useEffect(() => {
+    getLanguage().then(setLang);
+  }, []);
 
   async function load() {
     const token = await getToken();
@@ -48,13 +54,13 @@ export default function FriendsScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Friends</Text>
+      <Text style={styles.title}>{t(lang, "friends")}</Text>
       <View style={styles.card}>
-        <Input label="Add friend" value={username} onChangeText={setUsername} placeholder="Username" />
-        <Button title="Send request" onPress={handleSend} />
+        <Input label={t(lang, "addFriend")} value={username} onChangeText={setUsername} placeholder={t(lang, "username")} />
+        <Button title={t(lang, "sendRequest")} onPress={handleSend} />
       </View>
 
-      <Text style={styles.sectionTitle}>Incoming requests</Text>
+      <Text style={styles.sectionTitle}>{t(lang, "incoming")}</Text>
       <FlatList
         data={incoming}
         keyExtractor={(item) => String(item.id)}
@@ -62,32 +68,32 @@ export default function FriendsScreen() {
           <View style={styles.row}>
             <Text style={styles.itemText}>@{item.from_username}</Text>
             <View style={styles.rowButtons}>
-              <Button title="Accept" onPress={() => handleAccept(item.id)} />
-              <Button title="Reject" onPress={() => handleReject(item.id)} variant="secondary" />
+              <Button title={t(lang, "accept")} onPress={() => handleAccept(item.id)} />
+              <Button title={t(lang, "reject")} onPress={() => handleReject(item.id)} variant="secondary" />
             </View>
           </View>
         )}
-        ListEmptyComponent={<Text style={styles.empty}>No incoming requests.</Text>}
+        ListEmptyComponent={<Text style={styles.empty}>{t(lang, "noIncoming")}</Text>}
       />
 
-      <Text style={styles.sectionTitle}>Outgoing requests</Text>
+      <Text style={styles.sectionTitle}>{t(lang, "outgoing")}</Text>
       <FlatList
         data={outgoing}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => (
           <Text style={styles.itemText}>@{item.to_username}</Text>
         )}
-        ListEmptyComponent={<Text style={styles.empty}>No outgoing requests.</Text>}
+        ListEmptyComponent={<Text style={styles.empty}>{t(lang, "noOutgoing")}</Text>}
       />
 
-      <Text style={styles.sectionTitle}>Friends list</Text>
+      <Text style={styles.sectionTitle}>{t(lang, "friends")}</Text>
       <FlatList
         data={friends}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => (
           <Text style={styles.itemText}>@{item.username} ({item.display_name})</Text>
         )}
-        ListEmptyComponent={<Text style={styles.empty}>No friends yet.</Text>}
+        ListEmptyComponent={<Text style={styles.empty}>{t(lang, "noFriends")}</Text>}
       />
     </View>
   );

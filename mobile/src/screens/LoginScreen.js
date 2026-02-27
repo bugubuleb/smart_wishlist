@@ -1,14 +1,21 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import Button from "../components/Button";
+import Input from "../components/Input";
 import { login } from "../api";
 import { setToken } from "../storage";
+import { t, getLanguage } from "../i18n";
 
 export default function LoginScreen({ navigation }) {
   const [emailOrUsername, setEmailOrUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [lang, setLang] = useState("ru");
+
+  React.useEffect(() => {
+    getLanguage().then(setLang);
+  }, []);
 
   async function handleLogin() {
     if (!emailOrUsername || !password) return;
@@ -17,7 +24,7 @@ export default function LoginScreen({ navigation }) {
     try {
       const data = await login({ emailOrUsername, password });
       await setToken(data.token);
-      navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+      navigation.reset({ index: 0, routes: [{ name: "Tabs" }] });
     } catch (err) {
       setError(err.message || "Login failed");
     } finally {
@@ -27,26 +34,22 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Smart Wishlist</Text>
-      <TextInput
-        placeholder="Email or username"
-        placeholderTextColor="#9aa4bf"
+      <Text style={styles.title}>{t(lang, "appTitle")}</Text>
+      <Input
         value={emailOrUsername}
         onChangeText={setEmailOrUsername}
-        style={styles.input}
+        placeholder={t(lang, "emailOrUsername")}
         autoCapitalize="none"
       />
-      <TextInput
-        placeholder="Password"
-        placeholderTextColor="#9aa4bf"
+      <Input
         value={password}
         onChangeText={setPassword}
-        style={styles.input}
+        placeholder={t(lang, "password")}
         secureTextEntry
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <Button title={loading ? "Please wait..." : "Sign in"} onPress={handleLogin} disabled={loading} />
-      <Button title="Create account" onPress={() => navigation.navigate("Register")} variant="secondary" />
+      <Button title={loading ? t(lang, "loading") : t(lang, "login")} onPress={handleLogin} disabled={loading} />
+      <Button title={t(lang, "register")} onPress={() => navigation.navigate("Register")} variant="secondary" />
     </View>
   );
 }
@@ -64,15 +67,6 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "800",
     marginBottom: 8,
-  },
-  input: {
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "#161e32",
-    borderWidth: 1,
-    borderColor: "#2a3552",
-    color: "#ffffff",
-    paddingHorizontal: 12,
   },
   error: {
     color: "#ff6b6b",
