@@ -26,7 +26,6 @@ export default function RegisterScreen({ navigation }) {
     try {
       const data = await register({ email, username, displayName, password });
       await setToken(data.token);
-      navigation.reset({ index: 0, routes: [{ name: "Tabs" }] });
     } catch (err) {
       setError(err.message || "Registration failed");
     } finally {

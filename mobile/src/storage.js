@@ -1,10 +1,16 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { DeviceEventEmitter } from "react-native";
 
 const TOKEN_KEY = "smartwishlist_token";
 
 export async function setToken(token) {
-  if (!token) return AsyncStorage.removeItem(TOKEN_KEY);
-  return AsyncStorage.setItem(TOKEN_KEY, token);
+  if (!token) {
+    await AsyncStorage.removeItem(TOKEN_KEY);
+    DeviceEventEmitter.emit("authChanged");
+    return;
+  }
+  await AsyncStorage.setItem(TOKEN_KEY, token);
+  DeviceEventEmitter.emit("authChanged");
 }
 
 export async function getToken() {
@@ -12,5 +18,6 @@ export async function getToken() {
 }
 
 export async function clearToken() {
-  return AsyncStorage.removeItem(TOKEN_KEY);
+  await AsyncStorage.removeItem(TOKEN_KEY);
+  DeviceEventEmitter.emit("authChanged");
 }

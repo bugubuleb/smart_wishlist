@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { DeviceEventEmitter } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -37,6 +38,13 @@ export default function App() {
       setReady(true);
     }
     boot();
+
+    const sub = DeviceEventEmitter.addListener("authChanged", async () => {
+      const token = await getToken();
+      setIsAuthed(Boolean(token));
+    });
+
+    return () => sub.remove();
   }, []);
 
   if (!ready) return null;

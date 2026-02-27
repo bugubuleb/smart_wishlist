@@ -24,7 +24,6 @@ export default function LoginScreen({ navigation }) {
     try {
       const data = await login({ emailOrUsername, password });
       await setToken(data.token);
-      navigation.reset({ index: 0, routes: [{ name: "Tabs" }] });
     } catch (err) {
       setError(err.message || "Login failed");
     } finally {
