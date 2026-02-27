@@ -22,7 +22,10 @@ async function request(path, options = {}) {
 export function login(payload) {
   return request("/auth/login", {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      identifier: payload.emailOrUsername,
+      password: payload.password,
+    }),
   });
 }
 

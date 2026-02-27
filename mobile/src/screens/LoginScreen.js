@@ -23,7 +23,7 @@ export default function LoginScreen({ navigation }) {
     setError("");
     try {
       const data = await login({ emailOrUsername, password });
-      await setToken(data.token);
+      await setToken(data.accessToken || data.token);
     } catch (err) {
       setError(err.message || "Login failed");
     } finally {

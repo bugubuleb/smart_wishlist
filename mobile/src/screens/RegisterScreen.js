@@ -25,7 +25,7 @@ export default function RegisterScreen({ navigation }) {
     setError("");
     try {
       const data = await register({ email, username, displayName, password });
-      await setToken(data.token);
+      await setToken(data.accessToken || data.token);
     } catch (err) {
       setError(err.message || "Registration failed");
     } finally {
