@@ -15,6 +15,8 @@
 
 Проект сделан как полноценный fullstack-продукт на JS-стеке с PostgreSQL.
 
+Важно: актуальная мобильная версия теперь в `mobile/` (React Native CLI). PWA сохранена в ветке `pwa`.
+
 ### 2. Основные возможности
 
 #### 2.1 Аутентификация и профиль
@@ -107,7 +109,8 @@
 ### 4. Архитектура
 
 #### 4.1 Общая схема
-- `frontend` (`Next.js`, React) — UI и клиентская логика.
+- `frontend` (`Next.js`, React) — web UI (сохранено как web-версия).
+- `mobile` (`React Native CLI`) — мобильное приложение.
 - `backend` (`Node.js`, `Express`) — API и бизнес-правила.
 - `PostgreSQL` — хранение данных.
 - `WebSocket` (`ws`) — realtime-канал.
@@ -128,6 +131,9 @@ smart_wishlist/
     app/              # Next.js routes
     components/       # UI-компоненты
     lib/              # api-client, i18n, realtime, session, currency utils
+  mobile/
+    App.js            # React Native entry
+    src/              # экраны и api-клиент
   run.py              # запуск проекта одной командой
 ```
 
@@ -254,6 +260,8 @@ npm run dev
 - configure privacy rules (including hiding lists from specific users).
 
 It is implemented as a fullstack JavaScript product with PostgreSQL.
+
+Important: the mobile app is now in `mobile/` (React Native CLI). The previous PWA version is preserved in the `pwa` branch.
 
 ### 2. Core features
 
