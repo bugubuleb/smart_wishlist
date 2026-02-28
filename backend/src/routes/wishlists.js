@@ -5,6 +5,7 @@ import { pool } from "../db/pool.js";
 import { requireAuth } from "../middleware/auth.js";
 import { optionalAuth } from "../middleware/optional-auth.js";
 import { broadcast } from "../realtime/hub.js";
+import { convertCurrency, isSupportedCurrency } from "../services/currency.js";
 import { createNotificationLocalized } from "../services/notifications.js";
 import { makeWishlistSlug } from "../services/slug.js";
 
@@ -12,7 +13,7 @@ const DEFAULT_MIN_CONTRIBUTION = 100;
 
 const createItemSchema = z.object({
   title: z.string().min(1).max(200),
-  productUrl: z.string().url(),
+  productUrl: z.string().url().optional().nullable(),
   imageUrl: z
     .string()
     .refine((value) => /^https?:\/\//i.test(value) || /^data:image\/[a-z0-9.+-]+;base64,/i.test(value), {
@@ -53,6 +54,18 @@ const createWishlistWithMinSchema = z.object({
 
 function roundMoney(value) {
   return Math.round(Number(value) * 100) / 100;
+}
+
+function ceilMoney(value) {
+  return Math.ceil(Number(value || 0));
+}
+
+function getRequestedViewerCurrency(req) {
+  const raw = req.headers["x-viewer-currency"];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (!value) return null;
+  const normalized = String(value).trim().toUpperCase();
+  return isSupportedCurrency(normalized) ? normalized : null;
 }
 
 function resolveDueAt(dueDate) {
@@ -144,8 +157,11 @@ async function safeNotify(task) {
 }
 
 wishlistRouter.get("/wishlists/mine", requireAuth, async (req, res) => {
+  const headerViewerCurrency = getRequestedViewerCurrency(req);
   const result = await pool.query(
     `SELECT w.id, w.title, w.slug, w.is_public, w.min_contribution, w.due_at, w.recipient_mode, w.recipient_user_id, w.recipient_name, w.hide_from_recipient, w.created_at,
+            (SELECT preferred_currency FROM users WHERE id = $1) AS viewer_currency,
+            w.currency_code AS wishlist_currency,
             COALESCE((
               SELECT SUM(c.amount)
               FROM contributions c
@@ -163,14 +179,35 @@ wishlistRouter.get("/wishlists/mine", requireAuth, async (req, res) => {
      ORDER BY w.created_at DESC`,
     [req.user.userId],
   );
-
-  res.json({ wishlists: result.rows });
+  const wishlists = [];
+  for (const row of result.rows) {
+    const viewerCurrency = headerViewerCurrency || (isSupportedCurrency(row.viewer_currency)
+      ? String(row.viewer_currency).toUpperCase()
+      : "RUB");
+    const ownerCurrency = isSupportedCurrency(row.wishlist_currency)
+      ? String(row.wishlist_currency).toUpperCase()
+      : viewerCurrency;
+    const converted = await convertCurrency(
+      Number(row.my_contributed_sum || 0),
+      ownerCurrency,
+      viewerCurrency,
+    );
+    wishlists.push({
+      ...row,
+      viewer_currency: viewerCurrency,
+      my_contributed_sum: ceilMoney(converted ?? row.my_contributed_sum),
+    });
+  }
+  res.json({ wishlists });
 });
 
 
 wishlistRouter.get("/wishlists/shared", requireAuth, async (req, res) => {
+  const headerViewerCurrency = getRequestedViewerCurrency(req);
   const result = await pool.query(
     `SELECT w.id, w.title, w.slug, w.owner_id, w.due_at, w.recipient_mode, w.recipient_name, w.created_at, u.username AS owner_username,
+            (SELECT preferred_currency FROM users WHERE id = $1) AS viewer_currency,
+            w.currency_code AS wishlist_currency,
             COALESCE((
               SELECT SUM(c.amount)
               FROM contributions c
@@ -199,7 +236,26 @@ wishlistRouter.get("/wishlists/shared", requireAuth, async (req, res) => {
     [req.user.userId],
   );
 
-  res.json({ wishlists: result.rows });
+  const wishlists = [];
+  for (const row of result.rows) {
+    const viewerCurrency = headerViewerCurrency || (isSupportedCurrency(row.viewer_currency)
+      ? String(row.viewer_currency).toUpperCase()
+      : "RUB");
+    const ownerCurrency = isSupportedCurrency(row.wishlist_currency)
+      ? String(row.wishlist_currency).toUpperCase()
+      : "RUB";
+    const converted = await convertCurrency(
+      Number(row.my_contributed_sum || 0),
+      ownerCurrency,
+      viewerCurrency,
+    );
+    wishlists.push({
+      ...row,
+      viewer_currency: viewerCurrency,
+      my_contributed_sum: ceilMoney(converted ?? row.my_contributed_sum),
+    });
+  }
+  res.json({ wishlists });
 });
 
 wishlistRouter.get("/wishlists/notifications", requireAuth, async (req, res) => {
@@ -280,13 +336,20 @@ wishlistRouter.post("/wishlists", requireAuth, async (req, res) => {
     if (recipientData.recipientUserId && recipientData.recipientUserId === req.user.userId) {
       return res.status(409).json({ message: "Choose self mode for your own wishlist" });
     }
+    const ownerCurrencyResult = await pool.query(
+      "SELECT preferred_currency FROM users WHERE id = $1",
+      [req.user.userId],
+    );
+    const ownerCurrency = isSupportedCurrency(ownerCurrencyResult.rows[0]?.preferred_currency)
+      ? String(ownerCurrencyResult.rows[0].preferred_currency).toUpperCase()
+      : "RUB";
     const result = await pool.query(
       `INSERT INTO wishlists (
-          owner_id, title, slug, is_public, min_contribution, due_at,
+          owner_id, title, slug, is_public, min_contribution, due_at, currency_code,
           recipient_mode, recipient_user_id, recipient_name, hide_from_recipient
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       RETURNING id, title, slug, min_contribution, due_at, recipient_mode, recipient_user_id, recipient_name, hide_from_recipient`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       RETURNING id, title, slug, min_contribution, due_at, currency_code, recipient_mode, recipient_user_id, recipient_name, hide_from_recipient`,
       [
         req.user.userId,
         parsed.data.title,
@@ -294,6 +357,7 @@ wishlistRouter.post("/wishlists", requireAuth, async (req, res) => {
         parsed.data.isPublic !== false,
         minContribution,
         dueAt,
+        ownerCurrency,
         recipientData.recipientMode,
         recipientData.recipientUserId,
         recipientData.recipientName,
@@ -382,7 +446,7 @@ wishlistRouter.post("/wishlists/:slug/items", requireAuth, async (req, res) => {
     [
       ownerCheck.rows[0].id,
       parsed.data.title,
-      parsed.data.productUrl,
+      parsed.data.productUrl || null,
       parsed.data.imageUrl || null,
       parsed.data.targetPrice,
       parsed.data.priority,
@@ -645,15 +709,31 @@ wishlistRouter.delete("/items/:itemId/reserve", optionalAuth, async (req, res) =
 
 wishlistRouter.get("/wishlists/:slug", optionalAuth, async (req, res) => {
   const wishlistResult = await pool.query(
-    `SELECT id, owner_id, title, slug, is_public, min_contribution, due_at,
-            recipient_mode, recipient_user_id, recipient_name, hide_from_recipient
-     FROM wishlists WHERE slug = $1`,
+    `SELECT w.id, w.owner_id, w.title, w.slug, w.is_public, w.min_contribution, w.due_at,
+            w.recipient_mode, w.recipient_user_id, w.recipient_name, w.hide_from_recipient,
+            w.currency_code
+     FROM wishlists w
+     WHERE w.slug = $1`,
     [req.params.slug],
   );
 
   if (!wishlistResult.rowCount) return res.status(404).json({ message: "Wishlist not found" });
 
   const wishlist = wishlistResult.rows[0];
+  const sourceCurrency = isSupportedCurrency(wishlist.currency_code)
+    ? String(wishlist.currency_code).toUpperCase()
+    : "RUB";
+  let viewerCurrency = getRequestedViewerCurrency(req) || sourceCurrency;
+  if (req.user?.userId) {
+    const viewerCurrencyResult = await pool.query(
+      "SELECT preferred_currency FROM users WHERE id = $1",
+      [req.user.userId],
+    );
+    const preferred = viewerCurrencyResult.rows[0]?.preferred_currency;
+    if (!getRequestedViewerCurrency(req) && isSupportedCurrency(preferred)) {
+      viewerCurrency = String(preferred).toUpperCase();
+    }
+  }
   const isOwner = req.user?.userId === wishlist.owner_id;
   const isRecipientEditor = Boolean(
     req.user?.userId
@@ -708,17 +788,24 @@ wishlistRouter.get("/wishlists/:slug", optionalAuth, async (req, res) => {
     [wishlist.id],
   );
 
-  const items = itemsResult.rows.map((item) => {
+  const items = [];
+  for (const item of itemsResult.rows) {
     const targetPrice = Number(item.target_price || 0);
     const collectedRaw = Number(item.collected || 0);
     const collectedEffective = targetPrice > 0 ? Math.min(collectedRaw, targetPrice) : collectedRaw;
+    const convertedTargetPrice = await convertCurrency(targetPrice, sourceCurrency, viewerCurrency);
+    const convertedCollected = await convertCurrency(collectedEffective, sourceCurrency, viewerCurrency);
 
-    return {
+    items.push({
       id: item.id,
       title: item.title,
       product_url: item.product_url,
       image_url: item.image_url,
       target_price: targetPrice,
+      display_target_price: ceilMoney(convertedTargetPrice ?? targetPrice),
+      display_collected: ceilMoney(convertedCollected ?? collectedEffective),
+      currency: sourceCurrency,
+      display_currency: viewerCurrency,
       priority: item.priority || "medium",
       collected: collectedEffective,
       contributors_count: Number(item.contributors_count || 0),
@@ -729,8 +816,8 @@ wishlistRouter.get("/wishlists/:slug", optionalAuth, async (req, res) => {
       item_status: item.item_status,
       removed_reason: item.removed_reason,
       is_fully_funded: targetPrice > 0 && collectedEffective >= targetPrice,
-    };
-  });
+    });
+  }
 
   res.json({
     id: wishlist.id,
@@ -745,6 +832,7 @@ wishlistRouter.get("/wishlists/:slug", optionalAuth, async (req, res) => {
     recipient_mode: wishlist.recipient_mode,
     recipient_name: wishlist.recipient_name,
     hide_from_recipient: wishlist.hide_from_recipient,
+    currency: viewerCurrency,
     min_contribution: Number(wishlist.min_contribution || DEFAULT_MIN_CONTRIBUTION),
     items,
   });
@@ -825,6 +913,7 @@ wishlistRouter.post("/items/:itemId/contribute", optionalAuth, async (req, res) 
 
   const item = await pool.query(
     `SELECT wi.id, wi.item_status, wi.target_price, w.slug, w.id AS wishlist_id, w.min_contribution,
+            w.currency_code,
             w.recipient_mode, w.recipient_user_id,
             COALESCE((SELECT SUM(amount) FROM contributions c WHERE c.item_id = wi.id), 0) AS collected
      FROM wishlist_items wi
@@ -838,6 +927,20 @@ wishlistRouter.post("/items/:itemId/contribute", optionalAuth, async (req, res) 
     return res.status(409).json({ message: "Item is unavailable" });
   }
 
+  const wishlistCurrency = isSupportedCurrency(item.rows[0].currency_code)
+    ? String(item.rows[0].currency_code).toUpperCase()
+    : "RUB";
+  let actorCurrency = getRequestedViewerCurrency(req) || wishlistCurrency;
+  if (req.user?.userId) {
+    const actorCurrencyResult = await pool.query(
+      "SELECT preferred_currency FROM users WHERE id = $1",
+      [req.user.userId],
+    );
+    if (!getRequestedViewerCurrency(req) && isSupportedCurrency(actorCurrencyResult.rows[0]?.preferred_currency)) {
+      actorCurrency = String(actorCurrencyResult.rows[0].preferred_currency).toUpperCase();
+    }
+  }
+
   if (
     req.user?.userId
     && item.rows[0].recipient_mode === "friend"
@@ -848,13 +951,25 @@ wishlistRouter.post("/items/:itemId/contribute", optionalAuth, async (req, res) 
   }
 
   const minContribution = Number(item.rows[0].min_contribution || DEFAULT_MIN_CONTRIBUTION);
-  if (Number(parsed.data.amount) < minContribution) {
-    return res.status(400).json({ message: `Contribution should be at least ${minContribution}` });
+  const inputAmount = roundMoney(Number(parsed.data.amount));
+  if (!Number.isFinite(inputAmount) || inputAmount <= 0) {
+    return res.status(400).json({ message: "Invalid payload" });
+  }
+  const convertedIncomingAmount = await convertCurrency(inputAmount, actorCurrency, wishlistCurrency);
+  if (convertedIncomingAmount == null) {
+    return res.status(400).json({ message: "Unsupported currency conversion" });
+  }
+  const incomingAmount = roundMoney(convertedIncomingAmount);
+  if (incomingAmount < minContribution) {
+    const minDisplay = await convertCurrency(minContribution, wishlistCurrency, actorCurrency);
+    const minForActor = roundMoney(minDisplay ?? minContribution);
+    return res.status(400).json({
+      message: `Contribution should be at least ${minForActor} ${actorCurrency}`,
+    });
   }
 
   const targetPrice = Number(item.rows[0].target_price || 0);
   const collected = Number(item.rows[0].collected || 0);
-  const incomingAmount = roundMoney(Number(parsed.data.amount));
 
   if (targetPrice > 0 && collected >= targetPrice) {
     return res.status(409).json({ message: "Gift is already fully funded" });
@@ -1065,6 +1180,26 @@ wishlistRouter.post("/items/:itemId/contribute", optionalAuth, async (req, res) 
     creditUsedAmount: roundMoney(creditUsedAmount),
     chargedAmount: roundMoney(chargedAmount),
     droppedCreditAmount: roundMoney(droppedCreditAmount),
+    displayAcceptedAmount: roundMoney(
+      (await convertCurrency(totalAcceptedAmount, wishlistCurrency, actorCurrency)) ?? totalAcceptedAmount,
+    ),
+    displayRefundedAmount: roundMoney(
+      (await convertCurrency(refundedAmount, wishlistCurrency, actorCurrency)) ?? refundedAmount,
+    ),
+    displayTransferredAmount: roundMoney(
+      (await convertCurrency(transferredAmount, wishlistCurrency, actorCurrency)) ?? transferredAmount,
+    ),
+    displayCreditUsedAmount: roundMoney(
+      (await convertCurrency(creditUsedAmount, wishlistCurrency, actorCurrency)) ?? creditUsedAmount,
+    ),
+    displayChargedAmount: roundMoney(
+      (await convertCurrency(chargedAmount, wishlistCurrency, actorCurrency)) ?? chargedAmount,
+    ),
+    displayDroppedCreditAmount: roundMoney(
+      (await convertCurrency(droppedCreditAmount, wishlistCurrency, actorCurrency)) ?? droppedCreditAmount,
+    ),
+    currency: wishlistCurrency,
+    displayCurrency: actorCurrency,
     distribution: transferredAmount > 0 ? "priority_transfer" : refundedAmount > 0 ? "refund_only" : "none",
   });
 });

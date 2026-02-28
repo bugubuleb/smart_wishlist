@@ -1,8 +1,24 @@
-const WS_URL = process.env.SMARTWISHLIST_WS_URL || "wss://smartwishlist-production.up.railway.app/ws";
+const WS_URL =
+  process.env.SMARTWISHLIST_WS_URL ||
+  'wss://smartwishlist-production.up.railway.app/ws';
 
 export function connectWishlistSocket(slug, onMessage) {
   const socket = new WebSocket(`${WS_URL}/wishlists/${slug}`);
-  socket.onmessage = (event) => {
+  socket.onmessage = event => {
+    try {
+      onMessage(JSON.parse(event.data));
+    } catch {
+      // ignore
+    }
+  };
+  return socket;
+}
+
+export function connectNotificationsSocket(token, onMessage) {
+  const socket = new WebSocket(
+    `${WS_URL}/notifications?token=${encodeURIComponent(token)}`,
+  );
+  socket.onmessage = event => {
     try {
       onMessage(JSON.parse(event.data));
     } catch {

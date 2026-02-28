@@ -73,6 +73,11 @@ export async function bootstrapDatabase() {
   `);
 
   await pool.query(`
+    ALTER TABLE wishlists
+    ADD COLUMN IF NOT EXISTS currency_code VARCHAR(3) NOT NULL DEFAULT 'RUB'
+  `);
+
+  await pool.query(`
     ALTER TABLE wishlist_items
     ALTER COLUMN product_url TYPE TEXT
   `);
@@ -156,6 +161,14 @@ export async function bootstrapDatabase() {
     UPDATE wishlists
     SET due_at = created_at + INTERVAL '30 days'
     WHERE due_at IS NULL
+  `);
+
+  await pool.query(`
+    UPDATE wishlists w
+    SET currency_code = COALESCE(u.preferred_currency, 'RUB')
+    FROM users u
+    WHERE w.owner_id = u.id
+      AND (w.currency_code IS NULL OR w.currency_code = '')
   `);
 
   await pool.query(`

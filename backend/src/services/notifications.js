@@ -87,20 +87,19 @@ export async function createNotification({
   const pushAllowed = prefs.rowCount ? Boolean(prefs.rows[0].push_enabled) : true;
   if (!pushAllowed) return notification;
 
+  const payload = JSON.stringify({
+    title,
+    body,
+    link,
+    notificationId: notification.id,
+    data,
+  });
   const subscriptions = await pool.query(
     `SELECT id, endpoint, p256dh, auth
      FROM push_subscriptions
      WHERE user_id = $1`,
     [userId],
   );
-
-  const payload = JSON.stringify({
-    title,
-    body,
-    link,
-    notificationId: notification.id,
-  });
-
   for (const sub of subscriptions.rows) {
     try {
       await webpushLib.sendNotification(

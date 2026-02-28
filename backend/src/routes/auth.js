@@ -123,6 +123,8 @@ authRouter.get("/auth/me", requireAuth, async (req, res) => {
     username: user.username,
     preferredLanguage: user.preferred_language,
     preferredCurrency: user.preferred_currency,
+    language: user.preferred_language,
+    currency: user.preferred_currency,
   });
 });
 
@@ -165,6 +167,7 @@ authRouter.patch("/auth/currency", requireAuth, async (req, res) => {
   return res.json({
     id: updated.rows[0].id,
     preferredCurrency: updated.rows[0].preferred_currency,
+    currency: updated.rows[0].preferred_currency,
   });
 });
 
