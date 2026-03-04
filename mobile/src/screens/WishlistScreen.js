@@ -9,11 +9,12 @@ import {
   DeviceEventEmitter,
 } from 'react-native';
 import Svg, {Path} from 'react-native-svg';
+import {launchImageLibrary} from 'react-native-image-picker';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Screen from '../components/Screen';
 import SectionCard from '../components/SectionCard';
-import {getToken} from '../storage';
+import {getPreferredCurrency, getToken} from '../storage';
 import {
   getWishlist,
   createItem,
@@ -41,12 +42,25 @@ export default function WishlistScreen({route, navigation}) {
   const [isAutofillLoading, setIsAutofillLoading] = useState(false);
   const [contributions, setContributions] = useState({});
   const [lang, setLang] = useState('ru');
+  const [selectedCurrency, setSelectedCurrency] = useState('RUB');
   const [showAddItemForm, setShowAddItemForm] = useState(false);
+  const [isImagePicking, setIsImagePicking] = useState(false);
   const {palette} = useAppTheme();
   const styles = useMemo(() => createStyles(palette), [palette]);
 
   useEffect(() => {
     getLanguage().then(setLang);
+    getPreferredCurrency().then(value => {
+      if (value) {
+        setSelectedCurrency(String(value).toUpperCase());
+      }
+    });
+    const sub = DeviceEventEmitter.addListener('currencyChanged', currency => {
+      if (currency) {
+        setSelectedCurrency(String(currency).toUpperCase());
+      }
+    });
+    return () => sub.remove();
   }, []);
 
   const load = useCallback(async () => {
@@ -82,7 +96,7 @@ export default function WishlistScreen({route, navigation}) {
     const timer = setTimeout(async () => {
       setIsAutofillLoading(true);
       try {
-        const targetCurrency = wishlist?.currency || 'RUB';
+        const targetCurrency = wishlist?.currency || selectedCurrency || 'RUB';
         const data = await autofillByUrl(url, targetCurrency);
         if (!active || !data) {
           return;
@@ -90,11 +104,13 @@ export default function WishlistScreen({route, navigation}) {
         if (data.title) {
           setTitle(data.title);
         }
-        if (data.price != null) {
-          setPrice(String(data.price));
+        if (data.convertedPrice != null) {
+          setPrice(String(data.convertedPrice));
+        } else if (data.targetPrice != null) {
+          setPrice(String(data.targetPrice));
         }
-        if (data.image) {
-          setImageUrl(data.image);
+        if (data.imageUrl) {
+          setImageUrl(data.imageUrl);
         }
       } finally {
         if (active) {
@@ -106,7 +122,29 @@ export default function WishlistScreen({route, navigation}) {
       active = false;
       clearTimeout(timer);
     };
-  }, [url, autofill, wishlist?.currency]);
+  }, [url, autofill, wishlist?.currency, selectedCurrency]);
+
+  async function handlePickImage() {
+    setIsImagePicking(true);
+    try {
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        selectionLimit: 1,
+        includeBase64: true,
+        quality: 0.9,
+      });
+      if (result.didCancel || !result.assets?.length) {
+        return;
+      }
+      const asset = result.assets[0];
+      if (asset.base64) {
+        const mime = asset.type || 'image/jpeg';
+        setImageUrl(`data:${mime};base64,${asset.base64}`);
+      }
+    } finally {
+      setIsImagePicking(false);
+    }
+  }
 
   async function handleAddItem() {
     const token = await getToken();
@@ -231,6 +269,14 @@ export default function WishlistScreen({route, navigation}) {
                 value={imageUrl}
                 onChangeText={setImageUrl}
                 placeholder="https://"
+              />
+              <Button
+                title={
+                  isImagePicking ? t(lang, 'loading') : t(lang, 'uploadImage')
+                }
+                onPress={handlePickImage}
+                variant="secondary"
+                disabled={isImagePicking}
               />
               <Input
                 label={t(lang, 'price')}

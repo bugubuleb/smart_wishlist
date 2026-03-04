@@ -122,7 +122,7 @@ export default function DashboardScreen({navigation}) {
     if (!token || !title.trim()) {
       return;
     }
-    await createWishlist(
+    const created = await createWishlist(
       {
         title: title.trim(),
         minContribution: Number(minContribution) || 100,
@@ -140,6 +140,9 @@ export default function DashboardScreen({navigation}) {
     setStep(1);
     setShowCreateForm(false);
     await loadData();
+    if (created?.slug) {
+      navigation.navigate('Wishlist', {slug: created.slug});
+    }
   }
 
   const visibleFriends = useMemo(
