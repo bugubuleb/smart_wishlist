@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {View, Text, StyleSheet, FlatList} from 'react-native';
+import {View, Text, StyleSheet, FlatList, Pressable} from 'react-native';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Screen from '../components/Screen';
@@ -19,6 +19,7 @@ export default function FriendsScreen() {
   const [incoming, setIncoming] = useState([]);
   const [outgoing, setOutgoing] = useState([]);
   const [username, setUsername] = useState('');
+  const [tab, setTab] = useState('friends');
   const [lang, setLang] = useState('ru');
   const {palette} = useAppTheme();
   const styles = useMemo(() => createStyles(palette), [palette]);
@@ -70,10 +71,14 @@ export default function FriendsScreen() {
     await load();
   }
 
+  const listData =
+    tab === 'incoming' ? incoming : tab === 'outgoing' ? outgoing : friends;
+
   return (
     <Screen>
       <View style={styles.container}>
         <Text style={styles.title}>{t(lang, 'friends')}</Text>
+
         <SectionCard>
           <Input
             label={t(lang, 'addFriend')}
@@ -84,55 +89,99 @@ export default function FriendsScreen() {
           <Button title={t(lang, 'sendRequest')} onPress={handleSend} />
         </SectionCard>
 
-        <Text style={styles.sectionTitle}>{t(lang, 'incoming')}</Text>
-        <FlatList
-          data={incoming}
-          keyExtractor={item => String(item.id)}
-          renderItem={({item}) => (
-            <View style={styles.rowItem}>
-              <Text style={styles.itemText}>@{item.from_username}</Text>
-              <View style={styles.rowButtons}>
-                <Button
-                  title={t(lang, 'accept')}
-                  onPress={() => handleAccept(item.id)}
-                />
-                <Button
-                  title={t(lang, 'reject')}
-                  onPress={() => handleReject(item.id)}
-                  variant="secondary"
-                />
-              </View>
-            </View>
-          )}
-          ListEmptyComponent={
-            <Text style={styles.empty}>{t(lang, 'noIncoming')}</Text>
-          }
-        />
-
-        <Text style={styles.sectionTitle}>{t(lang, 'outgoing')}</Text>
-        <FlatList
-          data={outgoing}
-          keyExtractor={item => String(item.id)}
-          renderItem={({item}) => (
-            <Text style={styles.simpleItem}>@{item.to_username}</Text>
-          )}
-          ListEmptyComponent={
-            <Text style={styles.empty}>{t(lang, 'noOutgoing')}</Text>
-          }
-        />
-
-        <Text style={styles.sectionTitle}>{t(lang, 'friends')}</Text>
-        <FlatList
-          data={friends}
-          keyExtractor={item => String(item.id)}
-          renderItem={({item}) => (
-            <Text style={styles.simpleItem}>
-              @{item.username} ({item.display_name})
+        <View style={styles.segmented}>
+          <Pressable
+            style={[
+              styles.segmentBtn,
+              tab === 'friends' && styles.segmentActive,
+            ]}
+            onPress={() => setTab('friends')}>
+            <Text
+              style={[
+                styles.segmentText,
+                tab === 'friends' && styles.segmentTextActive,
+              ]}>
+              {t(lang, 'friends')}
             </Text>
-          )}
+          </Pressable>
+          <Pressable
+            style={[
+              styles.segmentBtn,
+              tab === 'incoming' && styles.segmentActive,
+            ]}
+            onPress={() => setTab('incoming')}>
+            <Text
+              style={[
+                styles.segmentText,
+                tab === 'incoming' && styles.segmentTextActive,
+              ]}>
+              {t(lang, 'incoming')}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[
+              styles.segmentBtn,
+              tab === 'outgoing' && styles.segmentActive,
+            ]}
+            onPress={() => setTab('outgoing')}>
+            <Text
+              style={[
+                styles.segmentText,
+                tab === 'outgoing' && styles.segmentTextActive,
+              ]}>
+              {t(lang, 'outgoing')}
+            </Text>
+          </Pressable>
+        </View>
+
+        <FlatList
+          data={listData}
+          keyExtractor={item => String(item.id)}
+          renderItem={({item}) => {
+            if (tab === 'incoming') {
+              return (
+                <View style={styles.rowItem}>
+                  <Text style={styles.itemText}>@{item.from_username}</Text>
+                  <View style={styles.compactActions}>
+                    <Pressable
+                      style={[styles.actionChip, styles.actionChipPrimary]}
+                      onPress={() => handleAccept(item.id)}>
+                      <Text style={styles.actionChipPrimaryText}>
+                        {t(lang, 'accept')}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.actionChip}
+                      onPress={() => handleReject(item.id)}>
+                      <Text style={styles.actionChipText}>
+                        {t(lang, 'reject')}
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            }
+
+            if (tab === 'outgoing') {
+              return <Text style={styles.simpleItem}>@{item.to_username}</Text>;
+            }
+
+            return (
+              <Text style={styles.simpleItem}>
+                @{item.username} ({item.display_name})
+              </Text>
+            );
+          }}
           ListEmptyComponent={
-            <Text style={styles.empty}>{t(lang, 'noFriends')}</Text>
+            <Text style={styles.empty}>
+              {tab === 'incoming'
+                ? t(lang, 'noIncoming')
+                : tab === 'outgoing'
+                ? t(lang, 'noOutgoing')
+                : t(lang, 'noFriends')}
+            </Text>
           }
+          contentContainerStyle={styles.listGap}
         />
       </View>
     </Screen>
@@ -151,13 +200,32 @@ function createStyles(palette) {
       fontSize: 28,
       fontWeight: '800',
     },
-    sectionTitle: {
+    segmented: {
+      flexDirection: 'row',
+      borderRadius: palette.radius.md,
+      borderWidth: 1,
+      borderColor: palette.colors.border,
+      backgroundColor: palette.colors.bgElevated,
+      padding: 4,
+      gap: 4,
+    },
+    segmentBtn: {
+      flex: 1,
+      minHeight: 36,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    segmentActive: {
+      backgroundColor: palette.colors.primary,
+    },
+    segmentText: {
       color: palette.colors.muted,
-      marginTop: 8,
       fontWeight: '700',
       fontSize: 12,
-      letterSpacing: 0.8,
-      textTransform: 'uppercase',
+    },
+    segmentTextActive: {
+      color: '#fff',
     },
     rowItem: {
       backgroundColor: palette.colors.bgElevated,
@@ -165,11 +233,35 @@ function createStyles(palette) {
       borderWidth: 1,
       borderColor: palette.colors.border,
       padding: 12,
-      gap: 8,
+      gap: 10,
     },
-    rowButtons: {
+    compactActions: {
       flexDirection: 'row',
       gap: 8,
+    },
+    actionChip: {
+      minHeight: 30,
+      paddingHorizontal: 12,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: palette.colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: palette.colors.card,
+    },
+    actionChipPrimary: {
+      backgroundColor: palette.colors.primary,
+      borderColor: palette.colors.primary,
+    },
+    actionChipText: {
+      color: palette.colors.text,
+      fontWeight: '700',
+      fontSize: 12,
+    },
+    actionChipPrimaryText: {
+      color: '#ffffff',
+      fontWeight: '700',
+      fontSize: 12,
     },
     itemText: {
       color: palette.colors.text,
@@ -183,6 +275,9 @@ function createStyles(palette) {
       borderColor: palette.colors.border,
       paddingVertical: 10,
       paddingHorizontal: 12,
+    },
+    listGap: {
+      gap: 8,
     },
     empty: {
       color: palette.colors.muted,

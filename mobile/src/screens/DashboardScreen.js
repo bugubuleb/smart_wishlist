@@ -33,7 +33,6 @@ export default function DashboardScreen({navigation}) {
   const [hideFromFoundUser, setHideFromFoundUser] = useState(true);
   const [friends, setFriends] = useState([]);
   const [hiddenUserIds, setHiddenUserIds] = useState([]);
-  const [step, setStep] = useState(1);
   const [lang, setLang] = useState('ru');
   const [listsTab, setListsTab] = useState('mine');
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -70,6 +69,9 @@ export default function DashboardScreen({navigation}) {
   }, [navigation, loadData]);
 
   useEffect(() => {
+    if (!showCreateForm) {
+      return;
+    }
     async function loadFriends() {
       const token = await getToken();
       if (!token) {
@@ -78,10 +80,8 @@ export default function DashboardScreen({navigation}) {
       const data = await getFriends(token);
       setFriends(data.friends || []);
     }
-    if (step === 2) {
-      loadFriends();
-    }
-  }, [step]);
+    loadFriends();
+  }, [showCreateForm]);
 
   useEffect(() => {
     setFoundUser(null);
@@ -137,12 +137,19 @@ export default function DashboardScreen({navigation}) {
     setRecipientInput('');
     setHiddenUserIds([]);
     setFoundUser(null);
-    setStep(1);
     setShowCreateForm(false);
     await loadData();
     if (created?.slug) {
       navigation.navigate('Wishlist', {slug: created.slug});
     }
+  }
+
+  function toggleFriendHidden(friendId) {
+    setHiddenUserIds(prev =>
+      prev.includes(friendId)
+        ? prev.filter(id => id !== friendId)
+        : [...prev, friendId],
+    );
   }
 
   const visibleFriends = useMemo(
@@ -154,22 +161,20 @@ export default function DashboardScreen({navigation}) {
     <Pressable
       style={styles.listItem}
       onPress={() => navigation.navigate('Wishlist', {slug: item.slug})}>
-      <View style={styles.listTopRow}>
-        <Text style={styles.listTitle}>{item.title}</Text>
-        <View style={styles.listRightColumn}>
-          {Number(item.my_contributed_sum || 0) > 0 ? (
-            <Text style={styles.listAmount}>
-              {Math.ceil(Number(item.my_contributed_sum || 0))}{' '}
-              {item.viewer_currency || 'RUB'}
-            </Text>
-          ) : null}
-          {item.is_responsible ? (
-            <Text style={styles.responsibleBadge}>
-              {t(lang, 'youAreResponsible')}
-            </Text>
-          ) : null}
-        </View>
-      </View>
+      <Text style={styles.listTitle}>{item.title}</Text>
+      {Number(item.my_contributed_sum || 0) > 0 || item.is_responsible ? (
+        <Text style={styles.listMeta}>
+          {Number(item.my_contributed_sum || 0) > 0
+            ? `${Math.ceil(Number(item.my_contributed_sum || 0))} ${
+                item.viewer_currency || 'RUB'
+              }`
+            : ''}
+          {Number(item.my_contributed_sum || 0) > 0 && item.is_responsible
+            ? ' • '
+            : ''}
+          {item.is_responsible ? t(lang, 'youAreResponsible') : ''}
+        </Text>
+      ) : null}
     </Pressable>
   );
 
@@ -185,6 +190,12 @@ export default function DashboardScreen({navigation}) {
           />
         ) : (
           <SectionCard title={t(lang, 'createWishlist')}>
+            <Pressable
+              style={styles.closeTap}
+              onPress={() => setShowCreateForm(false)}>
+              <Text style={styles.closeTapText}>×</Text>
+            </Pressable>
+
             <Input
               label={t(lang, 'title')}
               value={title}
@@ -192,97 +203,94 @@ export default function DashboardScreen({navigation}) {
               placeholder={t(lang, 'title')}
             />
 
-            {step === 1 ? (
-              <>
-                <View style={styles.row}>
-                  <Button
-                    title={t(lang, 'recipientSelf')}
-                    onPress={() => setRecipientMode('self')}
-                    variant={recipientMode === 'self' ? 'primary' : 'secondary'}
-                  />
-                  <Button
-                    title={t(lang, 'recipientFriend')}
-                    onPress={() => setRecipientMode('friend')}
-                    variant={
-                      recipientMode === 'friend' ? 'primary' : 'secondary'
-                    }
-                  />
-                </View>
-                {recipientMode === 'friend' ? (
-                  <Input
-                    label={t(lang, 'recipientInput')}
-                    value={recipientInput}
-                    onChangeText={setRecipientInput}
-                    placeholder={t(lang, 'recipientInput')}
-                  />
-                ) : null}
-                <Input
-                  label={t(lang, 'minContribution')}
-                  value={minContribution}
-                  onChangeText={setMinContribution}
-                  keyboardType="numeric"
-                  placeholder="100"
-                />
-                <View style={styles.row}>
-                  <Button
-                    title={t(lang, 'back')}
-                    onPress={() => {
-                      setShowCreateForm(false);
-                      setStep(1);
-                    }}
-                    variant="secondary"
-                  />
-                  <Button title={t(lang, 'next')} onPress={() => setStep(2)} />
-                </View>
-              </>
-            ) : (
-              <>
-                <Text style={styles.sectionTitle}>
-                  {t(lang, 'privacyTitle')}
+            <Input
+              label={t(lang, 'minContribution')}
+              value={minContribution}
+              onChangeText={setMinContribution}
+              keyboardType="numeric"
+              placeholder="100"
+            />
+
+            <View style={styles.modeRow}>
+              <Pressable
+                style={[
+                  styles.modeButton,
+                  recipientMode === 'self' && styles.modeButtonActive,
+                ]}
+                onPress={() => setRecipientMode('self')}>
+                <Text
+                  style={[
+                    styles.modeText,
+                    recipientMode === 'self' && styles.modeTextActive,
+                  ]}>
+                  {t(lang, 'recipientSelf')}
                 </Text>
-                {foundUser ? (
-                  <Button
-                    title={`${t(lang, 'hideFromFound')} @${foundUser.username}`}
-                    onPress={() => setHideFromFoundUser(prev => !prev)}
-                    variant={hideFromFoundUser ? 'primary' : 'secondary'}
-                  />
-                ) : null}
-                {visibleFriends.length > 0 ? (
-                  <View style={styles.listBlock}>
-                    <Text style={styles.muted}>{t(lang, 'hideFromUsers')}</Text>
-                    {visibleFriends.map(friend => (
-                      <Button
-                        key={friend.id}
-                        title={`@${friend.username}`}
-                        onPress={() => {
-                          setHiddenUserIds(prev =>
-                            prev.includes(friend.id)
-                              ? prev.filter(id => id !== friend.id)
-                              : [...prev, friend.id],
-                          );
-                        }}
-                        variant={
-                          hiddenUserIds.includes(friend.id)
-                            ? 'primary'
-                            : 'secondary'
-                        }
-                      />
-                    ))}
-                  </View>
-                ) : null}
-                <View style={styles.row}>
-                  <Button
-                    title={t(lang, 'prev')}
-                    onPress={() => setStep(1)}
-                    variant="secondary"
-                  />
-                  <Button
-                    title={t(lang, 'createWishlist')}
-                    onPress={handleCreate}
-                  />
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.modeButton,
+                  recipientMode === 'friend' && styles.modeButtonActive,
+                ]}
+                onPress={() => setRecipientMode('friend')}>
+                <Text
+                  style={[
+                    styles.modeText,
+                    recipientMode === 'friend' && styles.modeTextActive,
+                  ]}>
+                  {t(lang, 'recipientFriend')}
+                </Text>
+              </Pressable>
+            </View>
+
+            {recipientMode === 'friend' ? (
+              <Input
+                label={t(lang, 'recipientInput')}
+                value={recipientInput}
+                onChangeText={setRecipientInput}
+                placeholder={t(lang, 'recipientInput')}
+              />
+            ) : null}
+
+            {foundUser ? (
+              <Pressable
+                style={styles.toggleRow}
+                onPress={() => setHideFromFoundUser(prev => !prev)}>
+                <Text style={styles.toggleText}>
+                  {t(lang, 'hideFromFound')} @{foundUser.username}
+                </Text>
+                <Text style={styles.toggleValue}>
+                  {hideFromFoundUser ? '✓' : '—'}
+                </Text>
+              </Pressable>
+            ) : null}
+
+            {visibleFriends.length > 0 ? (
+              <View style={styles.friendsWrap}>
+                <Text style={styles.muted}>{t(lang, 'hideFromUsers')}</Text>
+                <View style={styles.chipsWrap}>
+                  {visibleFriends.map(friend => (
+                    <Pressable
+                      key={friend.id}
+                      style={[
+                        styles.chip,
+                        hiddenUserIds.includes(friend.id) && styles.chipActive,
+                      ]}
+                      onPress={() => toggleFriendHidden(friend.id)}>
+                      <Text
+                        style={[
+                          styles.chipText,
+                          hiddenUserIds.includes(friend.id) &&
+                            styles.chipTextActive,
+                        ]}>
+                        @{friend.username}
+                      </Text>
+                    </Pressable>
+                  ))}
                 </View>
-              </>
-            )}
+              </View>
+            ) : null}
+
+            <Button title={t(lang, 'createWishlist')} onPress={handleCreate} />
           </SectionCard>
         )}
 
@@ -347,14 +355,24 @@ function createStyles(palette) {
       fontSize: 30,
       fontWeight: '800',
     },
-    sectionTitle: {
+    closeTap: {
+      position: 'absolute',
+      top: 10,
+      right: 10,
+      width: 28,
+      height: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: palette.colors.border,
+      backgroundColor: palette.colors.bgElevated,
+    },
+    closeTapText: {
       color: palette.colors.muted,
-      marginTop: 12,
-      marginBottom: 4,
+      fontSize: 18,
+      lineHeight: 18,
       fontWeight: '700',
-      fontSize: 12,
-      letterSpacing: 0.8,
-      textTransform: 'uppercase',
     },
     segmented: {
       flexDirection: 'row',
@@ -364,11 +382,11 @@ function createStyles(palette) {
       backgroundColor: palette.colors.bgElevated,
       padding: 4,
       gap: 4,
-      marginTop: 6,
+      marginTop: 4,
     },
     segmentButton: {
       flex: 1,
-      minHeight: 40,
+      minHeight: 38,
       borderRadius: 10,
       justifyContent: 'center',
       alignItems: 'center',
@@ -384,6 +402,84 @@ function createStyles(palette) {
     segmentTextActive: {
       color: '#ffffff',
     },
+    modeRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    modeButton: {
+      flex: 1,
+      minHeight: 42,
+      borderRadius: palette.radius.md,
+      borderWidth: 1,
+      borderColor: palette.colors.border,
+      backgroundColor: palette.colors.bgElevated,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    modeButtonActive: {
+      backgroundColor: palette.colors.primary,
+      borderColor: palette.colors.primary,
+    },
+    modeText: {
+      color: palette.colors.text,
+      fontWeight: '700',
+      fontSize: 14,
+    },
+    modeTextActive: {
+      color: '#ffffff',
+    },
+    toggleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 11,
+      paddingHorizontal: 12,
+      borderRadius: palette.radius.md,
+      borderWidth: 1,
+      borderColor: palette.colors.border,
+      backgroundColor: palette.colors.bgElevated,
+      gap: 10,
+    },
+    toggleText: {
+      color: palette.colors.text,
+      fontWeight: '600',
+      flex: 1,
+    },
+    toggleValue: {
+      color: palette.colors.primary,
+      fontWeight: '800',
+      fontSize: 16,
+    },
+    friendsWrap: {
+      gap: 8,
+    },
+    chipsWrap: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    chip: {
+      paddingHorizontal: 10,
+      minHeight: 34,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: palette.colors.border,
+      backgroundColor: palette.colors.bgElevated,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    chipActive: {
+      backgroundColor: palette.colors.primary,
+      borderColor: palette.colors.primary,
+    },
+    chipText: {
+      color: palette.colors.text,
+      fontWeight: '600',
+      fontSize: 13,
+    },
+    chipTextActive: {
+      color: '#ffffff',
+    },
     listItem: {
       paddingVertical: 11,
       paddingHorizontal: 12,
@@ -393,50 +489,28 @@ function createStyles(palette) {
       borderColor: palette.colors.border,
       gap: 4,
     },
-    listTopRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      gap: 12,
-    },
     listTitle: {
       color: palette.colors.text,
       fontWeight: '700',
       fontSize: 18,
-      flex: 1,
     },
-    listRightColumn: {
-      alignItems: 'flex-end',
-      gap: 4,
-    },
-    listAmount: {
-      color: palette.colors.text,
-      fontWeight: '700',
+    listMeta: {
+      color: palette.colors.muted,
       fontSize: 12,
-    },
-    responsibleBadge: {
-      color: palette.colors.primary,
-      fontSize: 12,
-      fontWeight: '700',
+      fontWeight: '600',
     },
     listGap: {
       gap: 8,
       paddingBottom: 4,
     },
+    muted: {
+      color: palette.colors.muted,
+      fontSize: 12,
+      fontWeight: '600',
+    },
     empty: {
       color: palette.colors.muted,
       paddingVertical: 8,
-    },
-    row: {
-      flexDirection: 'row',
-      gap: 8,
-      flexWrap: 'wrap',
-    },
-    listBlock: {
-      gap: 8,
-    },
-    muted: {
-      color: palette.colors.muted,
     },
   });
 }
