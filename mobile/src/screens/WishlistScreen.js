@@ -19,12 +19,9 @@ import {
   getWishlist,
   createItem,
   contributeToItem,
-  reserveItem,
-  unreserveItem,
   setItemResponsible,
   unsetItemResponsible,
   removeItem,
-  setItemPriority,
   autofillByUrl,
 } from '../api';
 import {connectWishlistSocket} from '../realtime';
@@ -45,6 +42,8 @@ export default function WishlistScreen({route, navigation}) {
   const [selectedCurrency, setSelectedCurrency] = useState('RUB');
   const [showAddItemForm, setShowAddItemForm] = useState(false);
   const [isImagePicking, setIsImagePicking] = useState(false);
+  const [expandedItemId, setExpandedItemId] = useState(null);
+  const [itemActionError, setItemActionError] = useState('');
   const {palette} = useAppTheme();
   const styles = useMemo(() => createStyles(palette), [palette]);
 
@@ -176,21 +175,9 @@ export default function WishlistScreen({route, navigation}) {
     if (!token || !amount) {
       return;
     }
+    setItemActionError('');
     await contributeToItem(itemId, amount, token);
     setContributions(prev => ({...prev, [itemId]: ''}));
-    await load();
-  }
-
-  async function handleReserve(itemId, reserved) {
-    const token = await getToken();
-    if (!token) {
-      return;
-    }
-    if (reserved) {
-      await unreserveItem(itemId, token);
-    } else {
-      await reserveItem(itemId, token);
-    }
     await load();
   }
 
@@ -199,6 +186,7 @@ export default function WishlistScreen({route, navigation}) {
     if (!token) {
       return;
     }
+    setItemActionError('');
     if (responsible) {
       await unsetItemResponsible(itemId, token);
     } else {
@@ -207,22 +195,29 @@ export default function WishlistScreen({route, navigation}) {
     await load();
   }
 
-  async function handlePriority(itemId, priority) {
-    const token = await getToken();
-    if (!token) {
-      return;
-    }
-    await setItemPriority(itemId, priority, token);
-    await load();
-  }
-
   async function handleRemove(itemId) {
     const token = await getToken();
     if (!token) {
       return;
     }
-    await removeItem(itemId, t(lang, 'remove'), token);
-    await load();
+    setItemActionError('');
+    try {
+      await removeItem(itemId, t(lang, 'remove'), token);
+      if (Number(expandedItemId) === Number(itemId)) {
+        setExpandedItemId(null);
+      }
+      await load();
+    } catch (error) {
+      if (
+        String(error?.message || '')
+          .toLowerCase()
+          .includes('fully funded')
+      ) {
+        setItemActionError(t(lang, 'cannotDeleteFunded'));
+      } else {
+        setItemActionError(error?.message || t(lang, 'loading'));
+      }
+    }
   }
 
   return (
@@ -242,7 +237,12 @@ export default function WishlistScreen({route, navigation}) {
             />
           </Svg>
         </Pressable>
-        <Text style={styles.title}>{wishlist?.title || 'Wishlist'}</Text>
+        <Text style={styles.title}>
+          {wishlist?.title || t(lang, 'appTitle')}
+        </Text>
+        {itemActionError ? (
+          <Text style={styles.errorText}>{itemActionError}</Text>
+        ) : null}
 
         {wishlist?.can_edit ? (
           !showAddItemForm ? (
@@ -298,7 +298,7 @@ export default function WishlistScreen({route, navigation}) {
                   onPress={() => setShowAddItemForm(false)}
                   variant="secondary"
                 />
-                <Button title="Save" onPress={handleAddItem} />
+                <Button title={t(lang, 'save')} onPress={handleAddItem} />
               </View>
             </SectionCard>
           )
@@ -307,89 +307,100 @@ export default function WishlistScreen({route, navigation}) {
         <FlatList
           data={wishlist?.items || []}
           keyExtractor={item => String(item.id)}
-          renderItem={({item}) => (
-            <View
-              style={[
-                styles.item,
-                item.is_fully_funded ? styles.itemFunded : null,
-              ]}>
-              {item.image_url ? (
-                <Image source={{uri: item.image_url}} style={styles.image} />
-              ) : null}
-              <Text style={styles.itemTitle}>{item.title}</Text>
-              <Text style={styles.itemMeta}>
-                {t(lang, 'price')}:{' '}
-                {Math.ceil(
-                  Number(item.display_target_price ?? item.target_price ?? 0),
-                )}{' '}
-                {item.display_currency ||
-                  wishlist?.currency ||
-                  item.currency ||
-                  'RUB'}
-              </Text>
-              {item.is_responsible_me ? (
-                <Text style={styles.responsibleText}>
-                  {t(lang, 'youAreResponsible')}
-                </Text>
-              ) : null}
-              <Text style={styles.itemMeta}>
-                {t(lang, 'contribution')}:{' '}
-                {Math.ceil(
-                  Number(item.display_collected ?? item.collected ?? 0),
-                )}{' '}
-                {item.display_currency ||
-                  wishlist?.currency ||
-                  item.currency ||
-                  'RUB'}
-              </Text>
-              {!item.is_fully_funded && wishlist?.can_contribute !== false ? (
-                <>
-                  <Input
-                    label={t(lang, 'contribution')}
-                    value={String(contributions[item.id] || '')}
-                    onChangeText={value =>
-                      setContributions(prev => ({...prev, [item.id]: value}))
-                    }
-                    placeholder="0"
-                    keyboardType="numeric"
-                  />
-                  <View style={styles.row}>
-                    <Button
-                      title={t(lang, 'contribute')}
-                      onPress={() => handleContribute(item.id)}
+          renderItem={({item}) => {
+            const displayCurrency =
+              item.display_currency ||
+              wishlist?.currency ||
+              item.currency ||
+              'RUB';
+            const displayTarget = Number(
+              item.display_target_price ?? item.target_price ?? 0,
+            );
+            const displayCollected = Number(
+              item.display_collected ?? item.collected ?? 0,
+            );
+            const remaining = Math.max(
+              0,
+              Math.ceil(displayTarget - displayCollected),
+            );
+            const isExpanded = Number(expandedItemId) === Number(item.id);
+
+            return (
+              <View
+                style={[
+                  styles.item,
+                  item.is_fully_funded ? styles.itemFunded : null,
+                  isExpanded ? styles.itemExpanded : null,
+                ]}>
+                <Pressable
+                  style={styles.itemHeader}
+                  onPress={() =>
+                    setExpandedItemId(prev =>
+                      Number(prev) === Number(item.id) ? null : item.id,
+                    )
+                  }>
+                  {item.image_url ? (
+                    <Image
+                      source={{uri: item.image_url}}
+                      style={styles.image}
                     />
-                    <Button
-                      title={
-                        item.is_reserved_me
-                          ? t(lang, 'unreserve')
-                          : t(lang, 'reserve')
-                      }
-                      onPress={() =>
-                        handleReserve(item.id, Boolean(item.is_reserved_me))
-                      }
-                      variant="secondary"
-                    />
-                  </View>
-                </>
-              ) : null}
-              {wishlist?.can_contribute !== false ? (
-                <>
-                  <View style={styles.row}>
-                    <Button
-                      title={
-                        item.is_responsible_me
-                          ? t(lang, 'removeResponsibility')
-                          : t(lang, 'beResponsible')
-                      }
-                      onPress={() =>
-                        handleResponsible(
-                          item.id,
-                          Boolean(item.is_responsible_me),
-                        )
-                      }
-                      variant="secondary"
-                    />
-                    {wishlist?.can_edit ? (
+                  ) : null}
+                  <Text style={styles.itemTitle}>{item.title}</Text>
+                  <Text style={styles.itemMeta}>
+                    {t(lang, 'toGoal')}: {remaining} {displayCurrency}
+                  </Text>
+                  {item.is_responsible_me ? (
+                    <Text style={styles.responsibleText}>
+                      {t(lang, 'youAreResponsible')}
+                    </Text>
+                  ) : null}
+                  {item.is_fully_funded ? (
+                    <Text style={styles.fundedText}>
+                      {t(lang, 'itemFullyFunded')}
+                    </Text>
+                  ) : null}
+                </Pressable>
+
+                {isExpanded ? (
+                  <View style={styles.actionsWrap}>
+                    {!item.is_fully_funded &&
+                    wishlist?.can_contribute !== false ? (
+                      <>
+                        <Input
+                          label={t(lang, 'contribution')}
+                          value={String(contributions[item.id] || '')}
+                          onChangeText={value =>
+                            setContributions(prev => ({
+                              ...prev,
+                              [item.id]: value,
+                            }))
+                          }
+                          placeholder="0"
+                          keyboardType="numeric"
+                        />
+                        <View style={styles.row}>
+                          <Button
+                            title={t(lang, 'contribute')}
+                            onPress={() => handleContribute(item.id)}
+                          />
+                          <Button
+                            title={
+                              item.is_responsible_me
+                                ? t(lang, 'removeResponsibility')
+                                : t(lang, 'beResponsible')
+                            }
+                            onPress={() =>
+                              handleResponsible(
+                                item.id,
+                                Boolean(item.is_responsible_me),
+                              )
+                            }
+                            variant="secondary"
+                          />
+                        </View>
+                      </>
+                    ) : null}
+                    {wishlist?.can_edit && !item.is_fully_funded ? (
                       <Button
                         title={t(lang, 'remove')}
                         onPress={() => handleRemove(item.id)}
@@ -397,31 +408,14 @@ export default function WishlistScreen({route, navigation}) {
                       />
                     ) : null}
                   </View>
-                  {wishlist?.can_edit ? (
-                    <View style={styles.row}>
-                      <Button
-                        title="Low"
-                        onPress={() => handlePriority(item.id, 'low')}
-                        variant="secondary"
-                      />
-                      <Button
-                        title="Medium"
-                        onPress={() => handlePriority(item.id, 'medium')}
-                        variant="secondary"
-                      />
-                      <Button
-                        title="High"
-                        onPress={() => handlePriority(item.id, 'high')}
-                        variant="secondary"
-                      />
-                    </View>
-                  ) : null}
-                </>
-              ) : null}
-            </View>
-          )}
+                ) : null}
+              </View>
+            );
+          }}
           contentContainerStyle={styles.list}
-          ListEmptyComponent={<Text style={styles.empty}>No items yet.</Text>}
+          ListEmptyComponent={
+            <Text style={styles.empty}>{t(lang, 'noItems')}</Text>
+          }
         />
       </View>
     </Screen>
@@ -459,6 +453,16 @@ function createStyles(palette) {
       borderColor: palette.colors.border,
       gap: 8,
     },
+    itemExpanded: {
+      borderColor: palette.colors.primary,
+    },
+    itemHeader: {
+      gap: 8,
+    },
+    actionsWrap: {
+      gap: 8,
+      marginTop: 2,
+    },
     itemFunded: {
       backgroundColor: palette.colors.successCard,
     },
@@ -474,6 +478,12 @@ function createStyles(palette) {
       color: palette.colors.primary,
       fontSize: 12,
       fontWeight: '700',
+    },
+    fundedText: {
+      color: palette.colors.text,
+      fontSize: 12,
+      fontWeight: '700',
+      opacity: 0.75,
     },
     row: {
       flexDirection: 'row',
@@ -492,6 +502,10 @@ function createStyles(palette) {
     },
     muted: {
       color: palette.colors.muted,
+    },
+    errorText: {
+      color: palette.colors.danger,
+      fontWeight: '600',
     },
     list: {
       gap: 10,

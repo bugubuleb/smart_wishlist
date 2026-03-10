@@ -48,8 +48,8 @@ export default function RegisterScreen({navigation}) {
         <Text style={styles.title}>{t(lang, 'register')}</Text>
         <View style={styles.card}>
           <Input
-            label="Email"
-            placeholder="Email"
+            label={t(lang, 'email')}
+            placeholder={t(lang, 'email')}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"

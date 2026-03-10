@@ -44,9 +44,7 @@ export default function LoginScreen({navigation}) {
     <Screen>
       <View style={styles.container}>
         <Text style={styles.title}>{t(lang, 'appTitle')}</Text>
-        <Text style={styles.subtitle}>
-          Social wishlist with realtime updates
-        </Text>
+        <Text style={styles.subtitle}>{t(lang, 'loginSubtitle')}</Text>
         <View style={styles.card}>
           <Input
             label={t(lang, 'emailOrUsername')}
