@@ -4,7 +4,13 @@ import Svg, {Path} from 'react-native-svg';
 import Input from '../components/Input';
 import Screen from '../components/Screen';
 import SectionCard from '../components/SectionCard';
-import {createWishlist, getEventWishlists, lookupUserByUsername} from '../api';
+import {
+  assignSharedWishlistToEvent,
+  createWishlist,
+  getEventWishlists,
+  getSharedWishlists,
+  lookupUserByUsername,
+} from '../api';
 import {getToken} from '../storage';
 import {getLanguage, t} from '../i18n';
 import {useAppTheme} from '../theme';
@@ -13,6 +19,8 @@ export default function EventScreen({navigation, route}) {
   const {eventId} = route.params;
   const [event, setEvent] = useState(null);
   const [wishlists, setWishlists] = useState([]);
+  const [sharedWishlists, setSharedWishlists] = useState([]);
+  const [assigningWishlistId, setAssigningWishlistId] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [title, setTitle] = useState('');
   const [minContribution, setMinContribution] = useState('100');
@@ -31,9 +39,13 @@ export default function EventScreen({navigation, route}) {
     if (!token || !eventId) {
       return;
     }
-    const data = await getEventWishlists(eventId, token);
-    setEvent(data.event || null);
-    setWishlists(data.wishlists || []);
+    const [eventData, sharedData] = await Promise.all([
+      getEventWishlists(eventId, token),
+      getSharedWishlists(token).catch(() => ({wishlists: []})),
+    ]);
+    setEvent(eventData.event || null);
+    setWishlists(eventData.wishlists || []);
+    setSharedWishlists(sharedData.wishlists || []);
   }, [eventId]);
 
   useEffect(() => {
@@ -78,6 +90,27 @@ export default function EventScreen({navigation, route}) {
       navigation.navigate('Wishlist', {slug: created.slug});
     }
   }
+
+  async function handleAttachSharedWishlist(wishlistId) {
+    const token = await getToken();
+    if (!token || !eventId || !wishlistId) {
+      return;
+    }
+    setAssigningWishlistId(Number(wishlistId));
+    await assignSharedWishlistToEvent(eventId, wishlistId, token).catch(
+      () => null,
+    );
+    setAssigningWishlistId(null);
+    await loadData();
+  }
+
+  const availableSharedWishlists = useMemo(
+    () =>
+      sharedWishlists.filter(
+        item => Number(item.assigned_event_id || 0) !== Number(eventId),
+      ),
+    [eventId, sharedWishlists],
+  );
 
   return (
     <Screen>
@@ -166,6 +199,41 @@ export default function EventScreen({navigation, route}) {
           </SectionCard>
         ) : null}
 
+        {availableSharedWishlists.length > 0 ? (
+          <SectionCard>
+            <Text style={styles.sectionTitle}>{t(lang, 'sharedWithYou')}</Text>
+            <View style={styles.sharedList}>
+              {availableSharedWishlists.map(item => {
+                const isMoving = Number(item.assigned_event_id || 0) > 0;
+                const isLoading =
+                  Number(assigningWishlistId) === Number(item.id);
+                return (
+                  <View key={String(item.id)} style={styles.sharedRow}>
+                    <View style={styles.sharedRowTextWrap}>
+                      <Text style={styles.sharedRowTitle}>{item.title}</Text>
+                      <Text style={styles.sharedRowMeta}>
+                        {t(lang, 'sharedFrom')} @{item.owner_username}
+                      </Text>
+                    </View>
+                    <Pressable
+                      style={styles.sharedAttachButton}
+                      disabled={isLoading}
+                      onPress={() => handleAttachSharedWishlist(item.id)}>
+                      <Text style={styles.sharedAttachButtonText}>
+                        {isLoading
+                          ? t(lang, 'loading')
+                          : isMoving
+                          ? t(lang, 'moveToThisEvent')
+                          : t(lang, 'addToThisEvent')}
+                      </Text>
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
+          </SectionCard>
+        ) : null}
+
         <FlatList
           data={wishlists}
           keyExtractor={item => String(item.id)}
@@ -176,21 +244,26 @@ export default function EventScreen({navigation, route}) {
                 navigation.navigate('Wishlist', {slug: item.slug})
               }>
               <Text style={styles.listTitle}>{item.title}</Text>
-              {Number(item.my_contributed_sum || 0) > 0 ||
-              item.is_responsible ? (
-                <Text style={styles.listMeta}>
-                  {Number(item.my_contributed_sum || 0) > 0
-                    ? `${Math.ceil(Number(item.my_contributed_sum || 0))} ${
-                        item.viewer_currency || 'RUB'
-                      }`
-                    : ''}
-                  {Number(item.my_contributed_sum || 0) > 0 &&
-                  item.is_responsible
-                    ? ' • '
-                    : ''}
-                  {item.is_responsible ? t(lang, 'youAreResponsible') : ''}
-                </Text>
-              ) : null}
+              {(() => {
+                const meta = [];
+                if (item.is_shared && item.owner_username) {
+                  meta.push(`${t(lang, 'sharedFrom')} @${item.owner_username}`);
+                }
+                if (Number(item.my_contributed_sum || 0) > 0) {
+                  meta.push(
+                    `${Math.ceil(Number(item.my_contributed_sum || 0))} ${
+                      item.viewer_currency || 'RUB'
+                    }`,
+                  );
+                }
+                if (item.is_responsible) {
+                  meta.push(t(lang, 'youAreResponsible'));
+                }
+                if (!meta.length) {
+                  return null;
+                }
+                return <Text style={styles.listMeta}>{meta.join(' • ')}</Text>;
+              })()}
             </Pressable>
           )}
           contentContainerStyle={styles.listGap}
@@ -287,6 +360,57 @@ function createStyles(palette) {
       color: '#ffffff',
       fontWeight: '700',
       fontSize: 15,
+    },
+    sectionTitle: {
+      color: palette.colors.text,
+      fontWeight: '800',
+      fontSize: 16,
+      marginBottom: 8,
+    },
+    sharedList: {
+      gap: 8,
+    },
+    sharedRow: {
+      flexDirection: 'row',
+      gap: 8,
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 8,
+      paddingHorizontal: 8,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: palette.colors.border,
+      backgroundColor: palette.colors.bgElevated,
+    },
+    sharedRowTextWrap: {
+      flex: 1,
+      gap: 2,
+      paddingRight: 6,
+    },
+    sharedRowTitle: {
+      color: palette.colors.text,
+      fontWeight: '700',
+      fontSize: 14,
+    },
+    sharedRowMeta: {
+      color: palette.colors.muted,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    sharedAttachButton: {
+      minHeight: 30,
+      paddingHorizontal: 10,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: palette.colors.primary,
+      backgroundColor: palette.colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sharedAttachButtonText: {
+      color: '#ffffff',
+      fontWeight: '700',
+      fontSize: 12,
     },
     listItem: {
       paddingVertical: 11,

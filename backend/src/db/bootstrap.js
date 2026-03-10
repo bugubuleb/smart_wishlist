@@ -69,6 +69,22 @@ export async function bootstrapDatabase() {
   `);
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_wishlist_event_links (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      wishlist_id INTEGER NOT NULL REFERENCES wishlists(id) ON DELETE CASCADE,
+      event_id INTEGER NOT NULL REFERENCES wishlist_events(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      CONSTRAINT user_wishlist_event_links_unique UNIQUE (user_id, wishlist_id)
+    )
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_user_wishlist_event_links_event
+    ON user_wishlist_event_links (user_id, event_id)
+  `);
+
+  await pool.query(`
     ALTER TABLE wishlists
     ADD COLUMN IF NOT EXISTS min_contribution INTEGER NOT NULL DEFAULT 100
   `);

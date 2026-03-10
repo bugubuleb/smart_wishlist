@@ -108,6 +108,14 @@ export function getSharedWishlists(token) {
   });
 }
 
+export function assignSharedWishlistToEvent(eventId, wishlistId, token) {
+  return request(`/events/${eventId}/shared-wishlists`, {
+    method: 'POST',
+    headers: {Authorization: `Bearer ${token}`},
+    body: JSON.stringify({wishlistId}),
+  });
+}
+
 export function createWishlist(payload, token) {
   return request('/wishlists', {
     method: 'POST',

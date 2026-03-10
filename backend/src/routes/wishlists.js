@@ -57,6 +57,10 @@ const createEventSchema = z.object({
   title: z.string().trim().min(2).max(150),
 });
 
+const assignSharedWishlistSchema = z.object({
+  wishlistId: z.number().int().positive(),
+});
+
 function roundMoney(value) {
   return Math.round(Number(value) * 100) / 100;
 }
@@ -183,6 +187,27 @@ async function resolveEventId(ownerId, requestedEventId) {
   return Number(eventRow.rows[0].id);
 }
 
+async function canUserSeeSharedWishlist(userId, wishlistId) {
+  const check = await pool.query(
+    `SELECT w.id
+     FROM friendships f
+     JOIN wishlists w ON w.owner_id = f.friend_user_id
+     WHERE f.user_id = $1
+       AND w.id = $2
+       AND w.is_public = TRUE
+       AND NOT EXISTS (
+         SELECT 1
+         FROM wishlist_hidden_users whu
+         WHERE whu.wishlist_id = w.id AND whu.user_id = $1
+       )
+       AND NOT (w.hide_from_recipient = TRUE AND w.recipient_user_id = $1)
+     LIMIT 1`,
+    [userId, wishlistId],
+  );
+
+  return check.rowCount > 0;
+}
+
 export const wishlistRouter = Router();
 
 async function safeNotify(task) {
@@ -252,6 +277,9 @@ wishlistRouter.get("/events/:eventId/wishlists", requireAuth, async (req, res) =
   const headerViewerCurrency = getRequestedViewerCurrency(req);
   const result = await pool.query(
     `SELECT w.id, w.title, w.slug, w.is_public, w.min_contribution, w.due_at, w.created_at,
+            w.owner_id,
+            CASE WHEN w.owner_id = $1 THEN NULL ELSE u.username END AS owner_username,
+            (w.owner_id <> $1) AS is_shared,
             (SELECT preferred_currency FROM users WHERE id = $1) AS viewer_currency,
             w.currency_code AS wishlist_currency,
             COALESCE((
@@ -267,7 +295,24 @@ wishlistRouter.get("/events/:eventId/wishlists", requireAuth, async (req, res) =
               WHERE wi3.wishlist_id = w.id AND ir.user_id = $1
             ) AS is_responsible
      FROM wishlists w
-     WHERE w.owner_id = $1 AND w.event_id = $2
+     JOIN users u ON u.id = w.owner_id
+     LEFT JOIN user_wishlist_event_links uwel
+       ON uwel.user_id = $1 AND uwel.wishlist_id = w.id
+     LEFT JOIN friendships f
+       ON f.user_id = $1 AND f.friend_user_id = w.owner_id
+     WHERE (w.owner_id = $1 AND w.event_id = $2)
+       OR (
+         uwel.event_id = $2
+         AND w.owner_id <> $1
+         AND f.user_id IS NOT NULL
+         AND w.is_public = TRUE
+         AND NOT EXISTS (
+           SELECT 1
+           FROM wishlist_hidden_users whu
+           WHERE whu.wishlist_id = w.id AND whu.user_id = $1
+         )
+         AND NOT (w.hide_from_recipient = TRUE AND w.recipient_user_id = $1)
+       )
      ORDER BY w.created_at DESC`,
     [req.user.userId, eventId],
   );
@@ -296,6 +341,45 @@ wishlistRouter.get("/events/:eventId/wishlists", requireAuth, async (req, res) =
     event: eventCheck.rows[0],
     wishlists,
   });
+});
+
+wishlistRouter.post("/events/:eventId/shared-wishlists", requireAuth, async (req, res) => {
+  const eventId = Number(req.params.eventId);
+  if (!Number.isFinite(eventId) || eventId <= 0) {
+    return res.status(400).json({ message: "Invalid event id" });
+  }
+
+  const parsed = assignSharedWishlistSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: "Invalid payload" });
+  }
+
+  const eventCheck = await pool.query(
+    `SELECT id
+     FROM wishlist_events
+     WHERE id = $1 AND owner_id = $2
+     LIMIT 1`,
+    [eventId, req.user.userId],
+  );
+  if (!eventCheck.rowCount) {
+    return res.status(404).json({ message: "Event not found" });
+  }
+
+  const canSee = await canUserSeeSharedWishlist(req.user.userId, parsed.data.wishlistId);
+  if (!canSee) {
+    return res.status(403).json({ message: "Wishlist is not available for assignment" });
+  }
+
+  const assigned = await pool.query(
+    `INSERT INTO user_wishlist_event_links (user_id, wishlist_id, event_id)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (user_id, wishlist_id)
+     DO UPDATE SET event_id = EXCLUDED.event_id, created_at = NOW()
+     RETURNING id, user_id, wishlist_id, event_id, created_at`,
+    [req.user.userId, parsed.data.wishlistId, eventId],
+  );
+
+  return res.status(201).json({ assignment: assigned.rows[0] });
 });
 
 wishlistRouter.get("/wishlists/mine", requireAuth, async (req, res) => {
@@ -348,6 +432,7 @@ wishlistRouter.get("/wishlists/shared", requireAuth, async (req, res) => {
   const headerViewerCurrency = getRequestedViewerCurrency(req);
   const result = await pool.query(
     `SELECT w.id, w.title, w.slug, w.owner_id, w.due_at, w.recipient_mode, w.recipient_name, w.created_at, u.username AS owner_username,
+            uwel.event_id AS assigned_event_id,
             (SELECT preferred_currency FROM users WHERE id = $1) AS viewer_currency,
             w.currency_code AS wishlist_currency,
             COALESCE((
@@ -365,6 +450,8 @@ wishlistRouter.get("/wishlists/shared", requireAuth, async (req, res) => {
      FROM friendships f
      JOIN wishlists w ON w.owner_id = f.friend_user_id
      JOIN users u ON u.id = w.owner_id
+     LEFT JOIN user_wishlist_event_links uwel
+       ON uwel.user_id = $1 AND uwel.wishlist_id = w.id
      WHERE f.user_id = $1
        AND w.is_public = true
        AND NOT EXISTS (
@@ -395,6 +482,7 @@ wishlistRouter.get("/wishlists/shared", requireAuth, async (req, res) => {
       ...row,
       viewer_currency: viewerCurrency,
       my_contributed_sum: ceilMoney(converted ?? row.my_contributed_sum),
+      assigned_event_id: row.assigned_event_id ? Number(row.assigned_event_id) : null,
     });
   }
   res.json({ wishlists });
