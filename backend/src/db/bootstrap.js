@@ -43,6 +43,32 @@ export async function bootstrapDatabase() {
   `);
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS wishlist_events (
+      id SERIAL PRIMARY KEY,
+      owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title VARCHAR(150) NOT NULL,
+      is_default BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS wishlist_events_owner_title_unique_idx
+    ON wishlist_events (owner_id, LOWER(title))
+  `);
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS wishlist_events_owner_default_unique_idx
+    ON wishlist_events (owner_id)
+    WHERE is_default = TRUE
+  `);
+
+  await pool.query(`
+    ALTER TABLE wishlists
+    ADD COLUMN IF NOT EXISTS event_id INTEGER REFERENCES wishlist_events(id) ON DELETE SET NULL
+  `);
+
+  await pool.query(`
     ALTER TABLE wishlists
     ADD COLUMN IF NOT EXISTS min_contribution INTEGER NOT NULL DEFAULT 100
   `);
@@ -155,6 +181,26 @@ export async function bootstrapDatabase() {
       created_at TIMESTAMPTZ DEFAULT NOW(),
       CONSTRAINT wishlist_hidden_users_unique UNIQUE (wishlist_id, user_id)
     )
+  `);
+
+  await pool.query(`
+    INSERT INTO wishlist_events (owner_id, title, is_default)
+    SELECT u.id, 'General', TRUE
+    FROM users u
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM wishlist_events e
+      WHERE e.owner_id = u.id AND e.is_default = TRUE
+    )
+  `);
+
+  await pool.query(`
+    UPDATE wishlists w
+    SET event_id = e.id
+    FROM wishlist_events e
+    WHERE e.owner_id = w.owner_id
+      AND e.is_default = TRUE
+      AND w.event_id IS NULL
   `);
 
   await pool.query(`

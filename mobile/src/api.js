@@ -82,6 +82,26 @@ export function getMyWishlists(token) {
   });
 }
 
+export function getEvents(token) {
+  return request('/events', {
+    headers: {Authorization: `Bearer ${token}`},
+  });
+}
+
+export function createEvent(payload, token) {
+  return request('/events', {
+    method: 'POST',
+    headers: {Authorization: `Bearer ${token}`},
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getEventWishlists(eventId, token) {
+  return request(`/events/${eventId}/wishlists`, {
+    headers: {Authorization: `Bearer ${token}`},
+  });
+}
+
 export function getSharedWishlists(token) {
   return request('/wishlists/shared', {
     headers: {Authorization: `Bearer ${token}`},

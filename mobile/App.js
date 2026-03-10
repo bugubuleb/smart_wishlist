@@ -8,6 +8,7 @@ import Svg, {Circle, Path} from 'react-native-svg';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
+import EventScreen from './src/screens/EventScreen';
 import WishlistScreen from './src/screens/WishlistScreen';
 import FriendsScreen from './src/screens/FriendsScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
@@ -289,6 +290,7 @@ export default function App() {
         {isAuthed ? (
           <>
             <Stack.Screen name="Tabs" component={AppTabs} />
+            <Stack.Screen name="Event" component={EventScreen} />
             <Stack.Screen name="Wishlist" component={WishlistScreen} />
           </>
         ) : (
